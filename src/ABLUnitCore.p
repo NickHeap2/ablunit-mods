@@ -61,6 +61,10 @@ DEFINE VARIABLE quitOnEnd AS LOGICAL NO-UNDO INIT FALSE.
 // Supress the warnings
 SESSION:SUPPRESS-WARNINGS = YES.
 
+MESSAGE "Running custom ablunit...".
+LOG-MANAGER:LOGFILE-NAME = SESSION:TEMP-DIR + "ablunit.log".
+LOG-MANAGER:LOG-ENTRY-TYPES = "4GLMessages:4,4GLTrace:4".
+
 commandParams = SESSION:PARAM.
 
 commandParams = TRIM(commandParams, "~"").
@@ -91,8 +95,9 @@ CATCH e AS Error:
     IF testConfig:WriteLog THEN
         DO:
             LOG-MANAGER:LOGFILE-NAME = SESSION:TEMP-DIR + "ablunit.log".
-            LOG-MANAGER:LOG-ENTRY-TYPES = "4GLMessages".
+            LOG-MANAGER:LOG-ENTRY-TYPES = "4GLMessages:4,4GLTrace:4".
             LOG-MANAGER:WRITE-MESSAGE (e:GetMessage(1)).
+            LOG-MANAGER:WRITE-MESSAGE (e:CallStack).
             LOG-MANAGER:CLOSE-LOG.
         END.
     IF testConfig:ShowErrorMessage THEN

@@ -167,10 +167,21 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
     ------------------------------------------------------------------------------*/   
     
     METHOD PUBLIC TypeInfo BuildTypeInfo (INPUT testCase AS CHARACTER ):
-        
         DEFINE VARIABLE xrefFile AS CHARACTER NO-UNDO.
         xrefFile = SESSION:TEMP-DIR + testConfig:ResultsFileName + ".xref".
-        COMPILE value(testCase) xref-xml VALUE(xrefFile).
+        
+        COMPILE value(testCase) xref-xml VALUE(xrefFile) NO-ERROR.
+        IF ERROR-STATUS:ERROR THEN DO:
+          MESSAGE "FAILED TO COMPILE " + testCase.
+          RETURN ?.
+        END.
+
+        FILE-INFO:FILE-NAME = xrefFile.
+        IF FILE-INFO:FULL-PATHNAME = ? THEN DO:
+          MESSAGE "FAILED TO GENERATE XREF XML FOR " + testCase.
+          RETURN ?.
+        END.
+        
         DEFINE VARIABLE typeInfo AS TypeInfo NO-UNDO.
         typeInfo = ParseXMLDocument(xrefFile).
         /*Adding a check for debug mode for users to inspect the file in case something unexpected happens.*/
@@ -1105,7 +1116,54 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
         runtests(testEntity, updateFile, summaryResult).
         RETURN summaryResult.
        END METHOD.
-       
+    
+    METHOD PRIVATE VOID describeFail(testResult AS TestTestResult):
+      MESSAGE "FAIL:" testResult:Error:GetMessage(1).
+    END METHOD.
+
+    METHOD PRIVATE VOID describeException(testResult AS TestTestResult):
+      MESSAGE "EXCEPTION:" testResult:ERROR:GetMessage(1).
+      MESSAGE "          " ENTRY(1, testResult:ERROR:CallStack, "~n").
+    END METHOD.
+
+    METHOD PRIVATE VOID describeSuccess(testResult AS TestTestResult, timeTaken AS DECIMAL):
+      MESSAGE SUBSTITUTE("&1 (&2ms)", CHR(251), timeTaken * 1000).
+    END METHOD.
+
+    METHOD PRIVATE VOID describeTest(classOrProc AS CHARACTER, testCase AS CHARACTER):
+      DEFINE VARIABLE logText AS CHARACTER NO-UNDO.
+
+      DEFINE VARIABLE spacedTestCase AS CHARACTER NO-UNDO.
+
+      DEFINE VARIABLE cChar AS CHARACTER NO-UNDO.
+      DEFINE VARIABLE iChar AS INTEGER NO-UNDO.
+      DEFINE VARIABLE iAsc AS INTEGER NO-UNDO.
+
+      IF INDEX(classOrProc, "~\") > 0 THEN DO:
+        classOrProc = SUBSTRING(classOrProc, R-INDEX(classOrProc, "~\") + 1).
+      END. 
+      IF INDEX(classOrProc, "/") > 0 THEN DO:
+        classOrProc = SUBSTRING(classOrProc, R-INDEX(classOrProc, "/") + 1).
+      END. 
+
+      DO iChar = 1 TO LENGTH(testCase):
+        cChar = SUBSTRING(testCase, iChar, 1).
+        iAsc = ASC(cChar).
+        IF iAsc >= 65
+          AND iAsc <= 90
+        THEN DO:
+          spacedTestCase = spacedTestCase + " " + cChar.
+        END.
+        ELSE DO:
+          spacedTestCase = spacedTestCase + cChar.
+        END.
+      END.
+
+      logText = "TESTING " + classOrProc + " " + spacedTestCase.
+      MESSAGE FILL("-", LENGTH(logText)).
+      MESSAGE logText.
+    END METHOD.
+
     /*------------------------------------------------------------------------------
            runs all the tests that are populated in OpenEdge.ABLUnit.Model.TestEntity recursively                                                           
     ------------------------------------------------------------------------------*/
@@ -1174,6 +1232,12 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
                      content = "TEST_START " + STRING(testMethod:Id).
                      updateFile(updateFile, content, FALSE).
                      
+                     IF(testEntity:Name MATCHES "*.cls") THEN
+                       DescribeTest(CAST(testEntity , TestClass):classInfo:getClassName(), CAST(testMethod , TestMethod):name).
+                     IF(testEntity:Name MATCHES "*.p") THEN DO:
+                       DescribeTest(CAST(testEntity , TestProcedure):name, CAST(testMethod , TestMethod):name).
+                     END.
+                     
                      testMethodEntity = CAST(testMethod , TestMethod).
                      childTimeString = MTIME.
                      IF(testEntity:Name MATCHES "*.cls") THEN
@@ -1186,27 +1250,34 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
                     
                      IF(testResult:TestResult = TestTestResult:StatusFailed) THEN
                      DO:
+                         DescribeFail(testResult).
                          updateFile(updateFile, "TEST_FAIL " + STRING(testMethod:Id), FALSE).
                          updateStackTrace(testResult:Error, updateFile, STRING(testMethod:Id)).
                      END.
                      ELSE IF(testResult:TestResult = TestTestResult:StatusError) THEN     
                      DO:
-                             updateFile(updateFile, "TEST_EXCEPTION " + STRING(testMethod:Id), FALSE).
-                             updateStackTrace(testResult:Error, updateFile, STRING(testMethod:Id)).
+                         DescribeException(testResult).
+                         updateFile(updateFile, "TEST_EXCEPTION " + STRING(testMethod:Id), FALSE).
+                         updateStackTrace(testResult:Error, updateFile, STRING(testMethod:Id)).
                      END.
                      ELSE IF(testResult:TestResult = TestTestResult:StatusIgnored) THEN     
                      DO:
-                             updateFile(updateFile, "TEST_IGNORED " + STRING(testMethod:Id), FALSE).
+                         updateFile(updateFile, "TEST_IGNORED " + STRING(testMethod:Id), FALSE).
                      END.
+                     
 					 /* Update the time taken */
                      IF(testResult:TestResult = TestTestResult:StatusIgnored) THEN
                     	childTimeString = 0.
                      ELSE DO:
-                     	childTimeString = MTIME - childTimeString. 
+                     	childTimeString = MTIME - childTimeString.
+                     	
                      	childTimeString = childTimeString / 1000.
                      END.
-                     testMethod:TimeTaken = childTimeString.
+                     testMethod:TimeTaken = childTimeString.                     
                      updateFile(updateFile, "TEST_END " + STRING(testMethod:Id) + " " + STRING(childTimeString), FALSE).
+                     IF(testResult:TestResult = TestTestResult:StatusPassed) THEN DO:
+                       DescribeSuccess(testResult, childTimeString).
+                     END.
                 END.
               ELSE
                  runtests(CAST(children:GetValue(j), TestEntity), updateFile).
