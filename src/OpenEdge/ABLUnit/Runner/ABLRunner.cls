@@ -187,6 +187,9 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
         /*Adding a check for debug mode for users to inspect the file in case something unexpected happens.*/
         IF NOT SESSION:DEBUG-ALERT THEN
             OS-DELETE value(xrefFile).
+
+        // MESSAGE "  Methods (" + STRING(typeInfo:methodsCount) + ").".        
+
         RETURN typeInfo.
         
     END METHOD.
@@ -1117,21 +1120,34 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
         RETURN summaryResult.
        END METHOD.
     
-    METHOD PRIVATE VOID describeFail(testResult AS TestTestResult):
-      MESSAGE "FAIL:" testResult:Error:GetMessage(1).
+    METHOD PRIVATE VOID describeFail(testResult AS TestTestResult, testDescription AS CHARACTER):
+      MESSAGE "  *" testDescription.
+      MESSAGE "    Error:" testResult:Error:GetMessage(1).
     END METHOD.
 
-    METHOD PRIVATE VOID describeException(testResult AS TestTestResult):
-      MESSAGE "EXCEPTION:" testResult:ERROR:GetMessage(1).
+    METHOD PRIVATE VOID describeException(testResult AS TestTestResult, testDescription AS CHARACTER):
+      MESSAGE "  *" testDescription.
+      MESSAGE "    Error:" testResult:ERROR:GetMessage(1).
       MESSAGE "          " ENTRY(1, testResult:ERROR:CallStack, "~n").
     END METHOD.
 
-    METHOD PRIVATE VOID describeSuccess(testResult AS TestTestResult, timeTaken AS DECIMAL):
-      MESSAGE SUBSTITUTE("&1 (&2ms)", CHR(251), timeTaken * 1000).
+    METHOD PRIVATE VOID describeSuccess(testResult AS TestTestResult, testDescription AS CHARACTER, timeTaken AS DECIMAL):
+      MESSAGE SUBSTITUTE("  &1 &2 (&3ms)", CHR(251), testDescription, timeTaken * 1000).
     END METHOD.
 
-    METHOD PRIVATE VOID describeTest(classOrProc AS CHARACTER, testCase AS CHARACTER):
-      DEFINE VARIABLE logText AS CHARACTER NO-UNDO.
+    METHOD PRIVATE CHARACTER describeParent(classOrProc AS CHARACTER):
+    
+      IF INDEX(classOrProc, "~\") > 0 THEN DO:
+        classOrProc = SUBSTRING(classOrProc, R-INDEX(classOrProc, "~\") + 1).
+      END. 
+      IF INDEX(classOrProc, "/") > 0 THEN DO:
+        classOrProc = SUBSTRING(classOrProc, R-INDEX(classOrProc, "/") + 1).
+      END.
+
+      MESSAGE classOrProc.
+    END METHOD.
+
+    METHOD PRIVATE CHARACTER describeTest(classOrProc AS CHARACTER, testCase AS CHARACTER):
 
       DEFINE VARIABLE spacedTestCase AS CHARACTER NO-UNDO.
 
@@ -1159,9 +1175,7 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
         END.
       END.
 
-      logText = "TESTING " + classOrProc + " " + spacedTestCase.
-      MESSAGE FILL("-", LENGTH(logText)).
-      MESSAGE logText.
+      RETURN spacedTestCase.
     END METHOD.
 
     /*------------------------------------------------------------------------------
@@ -1222,6 +1236,12 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
             procedureAnnotInfo = procedureEntity:annotationInfo. 
             procedureAnnotInfo:RunBeforeProcedure(procHandle, summaryResult).
         END.   
+
+        DEFINE VARIABLE parentDescription AS CHARACTER NO-UNDO.
+        IF(testEntity:Name MATCHES "*.cls") THEN
+          parentDescription = DescribeParent(CAST(testEntity , TestClass):classInfo:getClassName()).
+        IF(testEntity:Name MATCHES "*.p") THEN
+          parentDescription = DescribeParent(CAST(testEntity , TestProcedure):name).
         
         DO j = 1 TO childrenSize:
              IF(TYPE-OF (children:GetValue(j), TestMethod)) THEN
@@ -1232,11 +1252,11 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
                      content = "TEST_START " + STRING(testMethod:Id).
                      updateFile(updateFile, content, FALSE).
                      
+                     DEFINE VARIABLE testDescription AS CHARACTER NO-UNDO.
                      IF(testEntity:Name MATCHES "*.cls") THEN
-                       DescribeTest(CAST(testEntity , TestClass):classInfo:getClassName(), CAST(testMethod , TestMethod):name).
-                     IF(testEntity:Name MATCHES "*.p") THEN DO:
-                       DescribeTest(CAST(testEntity , TestProcedure):name, CAST(testMethod , TestMethod):name).
-                     END.
+                       testDescription = DescribeTest(CAST(testEntity , TestClass):classInfo:getClassName(), CAST(testMethod , TestMethod):name).
+                     IF(testEntity:Name MATCHES "*.p") THEN
+                       testDescription = DescribeTest(CAST(testEntity , TestProcedure):name, CAST(testMethod , TestMethod):name).
                      
                      testMethodEntity = CAST(testMethod , TestMethod).
                      childTimeString = MTIME.
@@ -1250,13 +1270,13 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
                     
                      IF(testResult:TestResult = TestTestResult:StatusFailed) THEN
                      DO:
-                         DescribeFail(testResult).
+                         DescribeFail(testResult, testDescription).
                          updateFile(updateFile, "TEST_FAIL " + STRING(testMethod:Id), FALSE).
                          updateStackTrace(testResult:Error, updateFile, STRING(testMethod:Id)).
                      END.
                      ELSE IF(testResult:TestResult = TestTestResult:StatusError) THEN     
                      DO:
-                         DescribeException(testResult).
+                         DescribeException(testResult, testDescription).
                          updateFile(updateFile, "TEST_EXCEPTION " + STRING(testMethod:Id), FALSE).
                          updateStackTrace(testResult:Error, updateFile, STRING(testMethod:Id)).
                      END.
@@ -1276,7 +1296,7 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
                      testMethod:TimeTaken = childTimeString.                     
                      updateFile(updateFile, "TEST_END " + STRING(testMethod:Id) + " " + STRING(childTimeString), FALSE).
                      IF(testResult:TestResult = TestTestResult:StatusPassed) THEN DO:
-                       DescribeSuccess(testResult, childTimeString).
+                       DescribeSuccess(testResult, testDescription, childTimeString).
                      END.
                 END.
               ELSE
