@@ -68,6 +68,10 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
     DEFINE PRIVATE VARIABLE prevStackTraceProperty AS LOGICAL NO-UNDO.
     DEFINE PRIVATE VARIABLE oldWarningsList AS CHARACTER NO-UNDO.
     DEFINE VARIABLE ablResultsFile AS CHARACTER NO-UNDO.
+
+    DEFINE VARIABLE redString AS CHARACTER NO-UNDO.
+    DEFINE VARIABLE yellowString AS CHARACTER NO-UNDO.
+
     
      /*------------------------------------------------------------------------------
      Purpose:
@@ -83,6 +87,9 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
         updateStackTraceProperty().
         oldWarningsList = SESSION:SUPPRESS-WARNINGS-LIST.
         SESSION:SUPPRESS-WARNINGS-LIST = '6430,' + SESSION:SUPPRESS-WARNINGS-LIST.
+
+        redString = SUBSTITUTE("&1[31m", CHR(27)).
+        yellowString = SUBSTITUTE("&1[33m", CHR(27)).
     END CONSTRUCTOR.
     
     METHOD PRIVATE VOID updateStackTraceProperty():
@@ -1139,7 +1146,21 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
     END METHOD.
 
     METHOD PRIVATE VOID describeSuccess(testResult AS TestTestResult, testDescription AS CHARACTER, timeTaken AS DECIMAL):
-      MESSAGE SUBSTITUTE("  &1 &2 (&3ms)", CHR(251), testDescription, timeTaken * 1000).
+      DEFINE VARIABLE timeTakenMs AS DECIMAL NO-UNDO.
+      timeTakenMs = timeTaken * 1000.
+      DEFINE VARIABLE timeTakenString AS CHARACTER NO-UNDO.
+      
+      IF timeTakenMs > 75 THEN DO:
+        timeTakenString = SUBSTITUTE("&1(&2ms)", redString, timeTakenMs).
+      END.
+      ELSE IF timeTakenMs > (75 / 2) THEN DO:
+        timeTakenString = SUBSTITUTE("&1(&1ms)", yellowString, timeTakenMs).
+      END.
+      ELSE DO:
+        timeTakenString = SUBSTITUTE("", timeTakenMs).
+      END. 
+      
+      MESSAGE SUBSTITUTE("  &1 &2 &3", CHR(251), testDescription, timeTakenString).
     END METHOD.
 
     METHOD PRIVATE CHARACTER describeParent(classOrProc AS CHARACTER):
