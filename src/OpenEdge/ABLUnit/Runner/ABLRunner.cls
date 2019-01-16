@@ -173,6 +173,13 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
         COMPILE value(testCase) xref-xml VALUE(xrefFile) NO-ERROR.
         IF ERROR-STATUS:ERROR THEN DO:
           MESSAGE "FAILED TO COMPILE " + testCase.
+          DEFINE VARIABLE iMessage AS INTEGER NO-UNDO.
+          DEFINE VARIABLE cErrorMessage AS CHARACTER NO-UNDO.
+          DO iMessage = 1 TO ERROR-STATUS:NUM-MESSAGES:
+            IF iMessage > 1 THEN cErrorMessage = cErrorMessage + "~n".
+            cErrorMessage = cErrorMessage + ERROR-STATUS:GET-MESSAGE(iMessage).
+          END.
+          MESSAGE cErrorMessage.
           RETURN ?.
         END.
 
