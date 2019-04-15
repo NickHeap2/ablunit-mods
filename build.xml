@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<project name="ABL Unit Mods" default="build" xmlns:if="ant:if" xmlns:unless="ant:unless" xmlns:sonar="antlib:org.sonar.ant">
+    <description>ABL Unit Mods build</description>
+
+    <!-- load externals -->
+    <property file="build.properties"/>
+    <property file="default.properties"/>
+    <import file="macrodefs.xml"/>
+
+    <getosprops/>
+    <echo if:set="isWindows">Building on Windows with ${ant.version}</echo>
+    <echo if:set="isUnix">Building on Unix with ${ant.version}</echo>
+
+    <getoelocations/>
+    <property name="env.OEDLC" value="${env.OEDLC11}"/>
+
+    <!-- propath set -->
+    <path id="propath_ablunit">
+        <pathelement path="src"/>
+    </path>
+
+    <!-- compile files set -->
+    <fileset dir="src" id="fileset_ablunit">
+        <include name="**/*.p"/>
+        <include name="**/*.cls"/>
+    </fileset>
+
+    <target name="build" depends="init,compile"/>
+
+    <target name="init" depends="" description="Prepare for compile">
+        <mkdir dir="${clean.build}"/>
+        <mkdir dir="${clean.test}"/>
+        <delete dir="${clean.temp}" quiet="true"/>
+        <mkdir dir="${clean.temp}"/>
+    </target>
+
+    <target name="compile" description="Compile" depends="">
+
+      <property name="absolute.temp" location="${env.TEMP_DIR}"/>
+
+      <oecompile baseDir="src"
+                 databasesid=""
+                 propathid="propath_ablunit"
+                 filesetid="fileset_ablunit"
+                 tempDir="${absolute.temp}"
+                 destDir="build/oe11/"
+                 assembliesDir=""
+                 metadata="false"
+                 />
+
+      <buildpl baseDir="build/oe11/"
+               destDir="build/oe11/pl/"
+               libraryFile="ABLUnitMods.pl"/>
+    </target>
+</project>

@@ -26,6 +26,8 @@ CLASS OpenEdge.ABLUnit.Results.TestTestResult:
     DEFINE PUBLIC PROPERTY TestResult       AS INTEGER             NO-UNDO GET. SET.
     DEFINE PUBLIC PROPERTY IsIncomplete     AS LOGICAL             NO-UNDO INIT FALSE GET. SET.
     DEFINE PUBLIC PROPERTY TestName         AS CHARACTER           NO-UNDO GET. SET.
+    DEFINE PUBLIC PROPERTY TestDescription  AS CHARACTER           NO-UNDO GET. SET.
+    DEFINE PUBLIC PROPERTY TimeTaken        AS DECIMAL             NO-UNDO GET. SET.
     DEFINE PUBLIC PROPERTY ErrorMessage AS CHARACTER           NO-UNDO GET. SET.
     DEFINE PUBLIC PROPERTY Error    AS Progress.Lang.Error NO-UNDO GET. SET.
     

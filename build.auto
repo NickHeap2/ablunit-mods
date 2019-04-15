@@ -1,0 +1,21 @@
+{
+  "autoTargets": [
+    {
+      "filePattern": "build.xml",
+      "runTargets": "compile",
+      "initialDelayMs": 1000
+    },
+    {
+      "filePattern": "macrodefs.xml",
+      "runTargets": "compile",
+      "initialDelayMs": 1000
+    },
+    {
+      "filePattern": "**/*.{p,w,i,cls}",
+      "runTargets": "compile",
+      "initialDelayMs": 1000
+    }  ],
+  "disabled": [
+
+  ]
+}

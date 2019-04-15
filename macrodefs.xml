@@ -1,0 +1,868 @@
+<project name="Macrodefs" xmlns:if="ant:if" xmlns:unless="ant:unless" xmlns:sonar="antlib:org.sonar.ant">
+
+<taskdef unless:true="${env.PCT}" resource="PCT.properties" classpath="${env.PCT_PATH};${base.dir}/tools/lib/ast.jar;${base.dir}/tools/lib/ast-dependencies.jar" loaderRef="pct" />
+<typedef unless:true="${env.PCT}" resource="types.properties" classpath="${env.PCT_PATH};${base.dir}/tools/lib/ast.jar;${base.dir}/tools/lib/ast-dependencies.jar" loaderRef="pct" />
+<!-- <taskdef unless:true="${env.ANT-CONTRIB}" resource="net/sf/antcontrib/antcontrib.properties" classpath="${base.dir}/tools/lib/ant-contrib-1.0b3.jar"/>
+<taskdef unless:true="${env.ANT-CONTRIB}" resource="net/sf/antcontrib/antlib.xml" classpath="${base.dir}/tools/lib/ant-contrib-1.0b3.jar"/> -->
+
+<property name="env.PCT" value="True"/>
+<property name="env.ANT-CONTRIB" value="True"/>
+
+<property name="octo.Server" value="https://"/>
+<property name="octo.APIKey" value=""/>
+
+<!-- OS properties -->
+<macrodef name="getosprops">
+    <attribute name="isWindows" default="isWindows"/>
+    <attribute name="isUnix" default="isUnix"/>
+
+    <sequential>
+        <condition property="@{isWindows}" value="true">
+            <os family="windows" />
+        </condition>
+
+        <condition property="@{isUnix}" value="true">
+            <os family="unix" />
+        </condition>
+    </sequential>
+</macrodef>
+
+<macrodef name="getexecutable">
+    <attribute name="dlcHome" default="${env.OEDLC}"/>
+    <attribute name="command" default=""/>
+    <attribute name="executable" default="executable"/>
+
+    <sequential>
+        <local name="isWindows"/>
+
+        <!-- windows needs .bat added to exec commands -->
+        <condition property="isWindows" value="true">
+            <os family="windows"/>
+        </condition>
+        <property if:set="isWindows" name="@{executable}" value="@{dlcHome}/bin/@{command}.bat"/>
+        <property unless:set="isWindows" name="@{executable}" value="@{dlcHome}/bin/@{command}"/>
+        <!-- <echo>${@{executable}}</echo> -->
+    </sequential>
+</macrodef>
+
+<!-- OE install locations-->
+<macrodef name="getoelocations">
+    <attribute name="isWindows" default="isWindows"/>
+    <attribute name="isUnix" default="isUnix"/>
+    <attribute name="dlc11" default="env.OEDLC11"/>
+    <attribute name="dlc10" default="env.OEDLC10"/>
+    <attribute name="dlc10-64" default="env.OEDLC10-64"/>
+
+   <sequential>
+        <!-- set oe11 location -->
+        <!-- unix -->
+        <condition property="@{dlc11}" value="/usr/dlc">
+            <and>
+                <isset property="@{isUnix}"/>
+                <available file="/usr/dlc" type="dir"/>
+            </and>
+        </condition>
+        <!-- windows -->
+        <condition property="@{dlc11}" value="C:\\Progress\\OpenEdge">
+            <and>
+                <isset property="@{isWindows}"/>
+                <available file="C:\\Progress\\OpenEdge" type="dir"/>
+            </and>
+        </condition>
+        <condition property="@{dlc11}" value="C:\\Progressx86\\OpenEdge">
+            <and>
+                <isset property="@{isWindows}"/>
+                <available file="C:\\Progressx86\\OpenEdge" type="dir"/>
+            </and>
+        </condition>
+        <condition property="@{dlc11}" value="c:\\oe11">
+            <and>
+                <isset property="@{isWindows}"/>
+                <available file="c:\\oe11" type="dir"/>
+            </and>
+        </condition>
+
+        <!-- set oe10 location -->
+        <!-- unix -->
+        <condition property="@{dlc10}" value="/usr/dlc">
+            <and>
+                <isset property="@{isUnix}"/>
+                <available file="/usr/dlc" type="dir"/>
+            </and>
+        </condition>
+        <!-- windows -->
+        <condition property="@{dlc10}" value="C:\\oe10">
+            <and>
+                <isset property="@{isWindows}"/>
+                <available file="C:\\oe10" type="dir"/>
+            </and>
+        </condition>
+
+        <!-- set oe10-64 location -->
+        <!-- unix -->
+        <condition property="@{dlc10-64}" value="/usr/dlc">
+            <and>
+                <isset property="@{isUnix}"/>
+                <available file="/usr/dlc" type="dir"/>
+            </and>
+        </condition>
+        <!-- windows -->
+        <condition property="@{dlc10-64}" value="C:\\oe10-64">
+            <and>
+                <isset property="@{isWindows}"/>
+                <available file="C:\\oe10-64" type="dir"/>
+            </and>
+        </condition>
+    </sequential>
+</macrodef>
+
+<macrodef name="getBranchStatus">
+    <attribute name="branchNameProp" default="env.BUILD_BRANCH"/>
+    <attribute name="isMasterProp" default="isMaster"/>
+    <attribute name="isDeltaBuildProp" default="isDeltaBuild"/>
+
+    <sequential>
+        <property unless:set="@{branchNameProp}" name="@{branchNameProp}" value="local"/>
+
+        <condition property="@{isMasterProp}" value="true" else="false">
+            <and>
+                <isset property="@{branchNameProp}"/>
+<!--                <contains string="@{branchNameProp}" substring="master" casesensitive="false"/> -->
+                <equals arg1="${@{branchNameProp}}" arg2="master" casesensitive="false" trim="true"/>
+            </and>
+        </condition>
+
+        <condition property="@{isDeltaBuildProp}" value="true" else="false">
+            <or>
+                <istrue value="${@{isMasterProp}}"/>
+                <equals arg1="${@{branchNameProp}}" arg2="local" casesensitive="false" trim="true"/>
+            </or>
+        </condition>
+
+        <echo if:true="@{isMasterProp}" message="Building on master."/>
+        <echo unless:true="@{isMasterProp}" message="Building on branch ${@{branchNameProp}}."/>
+    </sequential>
+</macrodef>
+
+<!-- Progress databases-->
+<macrodef name="createdbfiles">
+    <attribute name="dlcHome" default="${env.OEDLC}"/>
+    <attribute name="baseDir" default="${base.dir}"/>
+    <attribute name="destDir" default="."/>
+    <attribute name="dbName" default="db"/>
+    <attribute name="structFile" default="@{destDir}/@{dbName}.st"/>
+
+    <sequential>
+        <mkdir dir="@{destDir}"/>
+
+        <echo file="@{structFile}">
+    #
+    b .
+    #
+    d "Schema Area":6,64;1 .
+        </echo>
+        <echo file="@{destDir}/proserve_@{dbName}.bat">call @{dlcHome}\\bin\\proserve.bat @{destDir}\\@{dbName}.db ${line.separator}pause</echo>
+        <echo file="@{destDir}/shutdown_@{dbName}.bat">call @{dlcHome}\\bin\\proshut.bat -by @{destDir}\\@{dbName}.db${line.separator}pause</echo>
+    </sequential>
+</macrodef>
+
+<macrodef name="createdb">
+    <attribute name="dlcHome" default="${env.OEDLC}"/>
+    <attribute name="baseDir" default="${base.dir}"/>
+    <attribute name="destDir" default="."/>
+    <attribute name="dbName" default="db"/>
+    <attribute name="structFile" default="@{destDir}/@{dbName}.st"/>
+    <attribute name="schemaFile" default="${base.dir}/resources/df/@{dbName}.df"/>
+
+    <sequential>
+        <!-- make this a local scope -->
+        <local name="db_exists"/>
+
+        <condition property="db_exists">
+            <available file="@{destDir}/@{dbName}.db"/>
+        </condition>
+        <sequential unless:set="db_exists">
+            <createdbfiles dlcHome="@{dlcHome}"
+                           baseDir="@{baseDir}"
+                           destDir="@{destDir}"
+                           dbName="@{dbName}"
+                           structFile="@{structFile}"/>
+            <PCTCreateBase dbName="@{dbName}"
+                           destDir="@{destDir}"
+                           dlcHome="@{dlcHome}"
+                           structFile="@{structFile}"
+                           schemaFile="@{schemaFile}"/>
+        </sequential>
+    </sequential>
+</macrodef>
+
+<macrodef name="proservedb">
+    <attribute name="dlcHome" default="${env.OEDLC}"/>
+    <attribute name="destDir" default="."/>
+    <attribute name="dbName" default="db"/>
+
+    <sequential>
+        <local name="db_exists"/>
+        <local name="already_running"/>
+        <local name="proserveExecutable"/>
+
+        <condition property="db_exists">
+            <available file="@{destDir}/@{dbName}.db"/>
+        </condition>
+        <fail message="Database @{dbName} doesn't exist"
+              unless="db_exists"/>
+
+        <condition property="already_running">
+            <available file="@{destDir}/@{dbName}.lk"/>
+        </condition>
+        <getexecutable dlcHome="@{dlcHome}"
+                       command="proserve"
+                       executable="proserveExecutable"/>
+        <exec unless:set="already_running"
+              dir="@{destDir}"
+              executable="${proserveExecutable}">
+            <arg value="@{dbName}.db"/>
+        </exec>
+    </sequential>
+</macrodef>
+
+<macrodef name="shutdowndb">
+    <attribute name="dlcHome" default="${env.OEDLC}"/>
+    <attribute name="destDir" default="."/>
+    <attribute name="dbName" default="db"/>
+
+    <sequential>
+        <local name="already_running"/>
+        <local name="proshutExecutable"/>
+
+        <condition property="is_running">
+            <available file="@{destDir}/@{dbName}.lk"/>
+        </condition>
+        <getexecutable dlcHome="@{dlcHome}"
+                       command="proshut"
+                       executable="proshutExecutable"/>
+        <exec if:set="is_running"
+              dir="@{destDir}"
+              executable="${proshutExecutable}"
+              failonerror="false">
+            <arg value="@{dbName}.db"/>
+            <arg value="-by"/>
+        </exec>
+        <waitfor maxwait="30"
+                 maxwaitunit="second">
+            <not>
+                <available file="@{destDir}/@{dbName}.lk"/>
+            </not>
+        </waitfor>
+    </sequential>
+</macrodef>
+
+<macrodef name="repairdb">
+    <attribute name="dlcHome" default="${env.OEDLC}"/>
+    <attribute name="destDir" default="."/>
+    <attribute name="dbName" default="db"/>
+
+    <sequential>
+        <local name="db_exists"/>
+        <local name="is_running"/>
+        <local name="prostrctExecutable"/>
+
+        <condition property="db_exists">
+            <available file="@{destDir}/@{dbName}.db"/>
+        </condition>
+        <fail unless="db_exists"
+              message="Database @{dbName} doesn't exist" />
+
+        <condition property="is_running">
+            <available file="@{destDir}/@{dbName}.lk"/>
+        </condition>
+        <fail if="is_running"
+              message="Database @{dbName} is running"/>
+
+        <getexecutable dlcHome="@{dlcHome}"
+                       command="prostrct"
+                       executable="prostrctExecutable"/>
+        <exec dir="@{destDir}"
+              executable="${prostrctExecutable}">
+            <arg value="repair"/>
+            <arg value="@{dbName}"/>
+        </exec>
+    </sequential>
+</macrodef>
+
+<!-- octopus -->
+<macrodef name="uploadpackage">
+    <attribute name="octoServer" default="${octo.Server}"/>
+    <attribute name="octoAPIKey" default="${octo.APIKey}"/>
+    <attribute name="packageFile" default=""/>
+
+    <sequential>
+        <exec executable="lib/octo.exe" failonerror="true">
+            <arg value="push"/>
+            <arg value="--package"/>
+            <arg value="@{packageFile}"/>
+            <arg value="--replace-existing"/>
+            <arg value="--server"/>
+            <arg value="@{octoServer}"/>
+            <arg value="--apiKey"/>
+            <arg value="@{octoAPIKey}"/>
+        </exec>
+    </sequential>
+</macrodef>
+
+<macrodef name="publishrelease">
+    <attribute name="octoServer" default="${octo.Server}"/>
+    <attribute name="octoAPIKey" default="${octo.APIKey}"/>
+    <attribute name="projectName" default=""/>
+    <attribute name="releaseName" default=""/>
+    <attribute name="versionNumber" default=""/>
+    <attribute name="channelName" default="master"/>
+
+    <sequential>
+        <!-- create an octopus release for the branch -->
+        <exec executable="lib/octo.exe" failonerror="true">
+            <arg value="create-release"/>
+            <arg value="--project"/>
+            <arg value="@{projectName}"/>
+            <arg value="--channel"/>
+            <arg value="@{channelName}"/>
+            <arg value="--version"/>
+            <arg value="@{releaseName}"/>
+            <arg value="--packageVersion"/>
+            <arg value="@{versionNumber}"/>
+            <arg value="--server"/>
+            <arg value="@{octoServer}"/>
+            <arg value="--apiKey"/>
+            <arg value="@{octoAPIKey}"/>
+            <arg value="--ignoreexisting"/>
+        </exec>
+    </sequential>
+</macrodef>
+
+<macrodef name="sonar" description="Perform SonarQube analysis and upload">
+    <attribute name="analysisMode" default=""/>
+    <attribute name="projectName" default=""/>
+    <attribute name="projectKey" default="com:UKMail:@{projectName}"/>
+    <attribute name="baseDir" default="${base.dir}"/>
+    <attribute name="versionNumber" default="${env.VERSION_NUMBER}"/>
+    <attribute name="branchName" default="master"/>
+    <attribute name="cpdExclusions" default="**/*.df"/>
+    <attribute name="oeDatabaseSchemas" default=""/>
+    <attribute name="oeDatabaseAliases" default=""/>
+
+    <attribute name="oeFileSuffixes" default="p,w,cls,i"/>
+    <attribute name="oePropath" default=""/>
+    <attribute name="oeBinaries" default=""/>
+    <attribute name="sources" default=""/>
+    <attribute name="testReports" default=""/>
+    <attribute name="profilerDir" default=""/>
+    <attribute name="oeTests" default=""/>
+
+    <attribute name="exclusions" default=""/>
+
+    <element name="preProperties"/>
+    <element name="postProperties"/>
+
+    <sequential>
+        <taskdef uri="antlib:org.sonar.ant" resource="org/sonar/ant/antlib.xml" classpath="${base.dir}/tools/lib/sonarqube-ant-task-2.5.jar"/>
+
+        <!-- set properties for scan -->
+        <property name="sonar.analysis.mode" value="@{analysisMode}"/>
+        <!--sonar.issuesReport.html.enable=true
+        sonar.issuesReport.json.enable=true
+        sonar.report.export.path=sonar-report.json -->
+        <sequential>
+            <preProperties/>
+        </sequential>
+
+        <property name="sonar.issuesReport.console.enable" value="true"/>
+
+        <property name="sonar.host.url" value="https://sonarcloud.io/organizations/dhlparceluk" />
+        <property name="sonar.login" value="4278e0fa-b6db-4d15-88b7-f157c88cdf67" />
+        <!-- <property name="sonarcloud.organisation" value="https://sonarcloud.io/organizations/dhlparceluk" />
+        <property name="sonarcloud.token.secure" value="4278e0fa-b6db-4d15-88b7-f157c88cdf67" /> -->
+
+        <property name="sonar.userHome" value="@{baseDir}/.sonarcache" />
+        <property name="sonar.working.directory" value="@{baseDir}/.sonar" />
+        <!-- <property name="sonar.links.ci" value="http://build:8081" /> -->
+
+        <property name="sonar.sourceEncoding" value="iso8859-1"/>
+
+        <property name="sonar.scm.disabled" value="true"/>
+
+        <property name="sonar.projectKey" value="@{projectKey}" />
+        <property name="sonar.projectName" value="@{projectName}" />
+        
+        <!-- need to keep as multi-language so just tell vb not to analyze .cls files -->
+        <!-- <property name="sonar.language" value="oe" /> -->
+        <property name="sonar.vb.file.suffixes" value=".vb" />
+
+        <!-- set sonar as our base dir -->
+        <property name="sonar.projectBaseDir" value="@{baseDir}" />
+        <property name="sonar.projectVersion" value="@{versionNumber}" />
+        <property name="sonar.branch" value="@{branchName}" />
+
+        <!-- allow copy past detection across projects -->
+        <property name="sonar.cpd.cross_project" value="true"/>
+
+        <property name="sonar.cpd.exclusions" value="@{cpdExclusions}" />
+
+        <!-- sonar openedge properties -->
+        <!-- <property name="sonar.oe.databases" value="@{oeDatabaseSchemas}"/>
+        <property name="sonar.oe.aliases" value="@{oeDatabaseAliases}"/>
+
+        <property name="sonar.oe.file.suffixes" value="@{oeFileSuffixes}"/>
+        <property name="sonar.oe.pct_style" value="true" />
+        <property name="sonar.oe.propath" value="@{oePropath}"/>
+        <property name="sonar.oe.propath.dlc" value="false"/>
+        <property name="sonar.oe.binaries" value="@{oeBinaries}" /> -->
+
+        <!-- debugs off -->
+        <!-- <property name="sonar.oe.cpd.debug" value="false" />
+        <property name="sonar.oe.proparse.debug" value="false" /> -->
+
+        <!-- set sources, binaries and tests -->
+        <property name="sonar.sources" value="@{sources}" />
+        <property name="sonar.binaries" value="@{oeBinaries}" />
+
+        <!-- unit tests -->
+        <property name="sonar.testExecutionReportPaths" value="@{testReports}"/>
+        <!-- coverage -->
+        <!-- <property name="sonar.oe.coverage.profiler.dirs" value="@{profilerDir}"/> -->
+        <!-- set tests -->
+        <property name="sonar.tests" value="@{oeTests}" />
+
+        <!-- small test files <property name="sonar.inclusions" value="**/*" /> -->
+        <!--    <property name="sonar.inclusions" value="**/*,**/*,**/*" /> -->
+        <!-- add in files that fail to parse; to be sorted later -->
+        <property name="sonar.exclusions" value="@{exclusions}" />
+
+        <sequential>
+            <postProperties/>
+        </sequential>
+
+        <!-- call sonar analysis -->
+        <!-- <record action="start" name="c:/temp/sonar.log" loglevel="debug" /> -->
+        <sonar:sonar/>
+        <!-- <record action="stop" loglevel="debug" /> -->
+	</sequential>
+</macrodef>
+
+
+<macrodef name="listzipcontents">
+    <attribute name="file"/>
+    <attribute name="filelistprop"/>
+    <attribute name="copylistprop"/>
+  
+    <sequential>
+        <zipfileset src="@{file}" id="content"/>
+        <pathconvert property="@{filelistprop}" pathsep="${line.separator}">
+            <zipfileset refid="content"/>
+            <map from="@{file}:" to=""/>
+        </pathconvert>
+        <pathconvert property="@{copylistprop}" pathsep="${line.separator}">
+            <zipfileset refid="content"/>
+            <chainedmapper>
+                <globmapper from="@{file}:*" to="*" />
+                <filtermapper>
+                    <replacestring from="/" to="\"/>
+                </filtermapper>
+                <regexpmapper from="^(.*)" to="echo F|xcopy /Y \1 Pre-Release-${env.VERSION_NUMBER}\\\1"/>
+            </chainedmapper>
+        </pathconvert>
+    </sequential>
+</macrodef>
+
+<macrodef name="dumpdfanddotd">
+    <attribute name="dlcHome" default="${env.OEDLC}"/>
+    <attribute name="baseDir" default="${base.dir}"/>
+    <attribute name="destDir" default="${baseDir}/tranman"/>
+    <attribute name="dbDir" default="${baseDir}/tranman"/>
+    <attribute name="dbName"/>
+
+    <sequential>
+        <mkdir dir="tranman/@{dbName}"/>
+        <copy file="@{dbDir}/@{dbName}.st" tofile="@{destDir}/@{dbName}/@{dbName}.st" overwrite="true"/>
+        <PCTDumpSchema destFile="@{destDir}/@{dbName}/@{dbName}.df" dlcHome="@{dlcHome}">
+            <PCTConnection dbDir="@{dbDir}" dbName="@{dbName}" singleUser="true"/>
+        </PCTDumpSchema>
+        <PCTDumpData destDir="@{destDir}/@{dbName}" dlcHome="@{dlcHome}">
+            <PCTConnection dbDir="@{dbDir}" dbName="@{dbName}" singleUser="true"/>
+        </PCTDumpData>
+    </sequential>
+</macrodef>
+
+<macrodef name="loaddfanddotd">
+    <attribute name="dlcHome" default="${env.OEDLC}"/>
+    <attribute name="baseDir" default="${base.dir}"/>
+    <attribute name="srcDir" default="@{baseDir}/resources/tranman"/>
+    <attribute name="dbName"/>
+    <attribute name="structFile" default="@{srcDir}/@{dbName}/@{dbName}.st"/>
+    <attribute name="schemaFile" default="@{srcDir}/@{dbName}/@{dbName}.df"/>
+    <attribute name="destDir" default="@{baseDir}/build/db/tranman"/>
+    <attribute name="dbDir" default="@{destDir}"/>
+
+    <sequential>
+        <mkdir dir="@{destDir}"/>
+        <PCTCreateBase dbName="@{dbName}"
+                       destDir="@{destDir}"
+                       dlcHome="@{dlcHome}"
+                       structFile="@{structFile}"
+                       schemaFile="@{schemaFile}"/>
+        <PCTLoadData srcDir="@{srcDir}/@{dbName}" dlcHome="@{dlcHome}">
+            <PCTConnection dbDir="@{dbDir}" dbName="@{dbName}" singleUser="true" />
+        </PCTLoadData>
+    </sequential>
+</macrodef>
+
+<macrodef name="oetest">
+    <attribute name="branch" default="${env.BUILD_BRANCH}"/>
+    <attribute name="changeId" default="${env.BUILD_SHORT_COMMIT}"/>
+
+    <attribute name="dlcHome" default="${env.OEDLC}"/>
+    <attribute name="graphicalMode" default="false"/>
+    <attribute name="baseDir" default="${base.dir}"/>
+    <attribute name="destDir" default="@{baseDir}/build"/>
+    <attribute name="tempDir" default="${env.TEMP_DIR}"/>
+    <attribute name="minSize" default="false"/>
+    <attribute name="metadata" default="false" description="Keep metadata during the compile?"/>
+    <attribute name="displayFiles" default="0"/>
+
+    <attribute name="languages" default=""/>
+
+    <attribute name="databasesid"/>
+    <attribute name="propathid"/>
+    <attribute name="filesetid"/>
+
+    <attribute name="assembliesDir" default=""/>
+    <attribute name="noTTYAssemblies" default="false"/>
+
+    <sequential>
+        <local name="addAssemblies"/>
+        <condition property="addAssemblies" value="true" else="false">
+            <or>
+              <and>
+                  <not>
+                      <equals arg1="@{assembliesDir}" arg2=""/>
+                  </not>
+                  <istrue value="@{graphicalMode}"/>
+              </and>
+              <and>
+                  <not>
+                      <equals arg1="@{assembliesDir}" arg2=""/>
+                  </not>
+                  <isfalse value="@{graphicalMode}"/>
+                  <isfalse value="@{noTTYAssemblies}"/>
+              </and>
+            </or>
+        </condition>
+
+        <mkdir dir="@{destDir}"/>
+
+        <delete quiet="true">
+            <fileset dir="@{destDir}/profiler" includes="**/*.out"/>
+            <fileset dir="profile" includes="**/*"/>
+            <fileset dir="@{destDir}/reports" includes="**/*"/>
+        </delete>
+        <mkdir dir="profile"/>
+        <mkdir dir="@{destDir}/reports"/>
+
+        <echo level="info">Building branch=@{branch} ChangeId=@{changeId}
+ABLUnit Tests using:
+ Progress DLC=@{dlcHome}
+  SourceDirectory=@{baseDir}
+  TargetDirectory=@{destDir}
+  TempDirectory=@{tempDir}
+  Graphical client=@{graphicalMode}
+  Assemblies=@{assembliesDir} NoTTYAssemblies=@{noTTYAssemblies} addAssemblies=${addAssemblies}
+  Propath=@{propathid}</echo>
+
+        <ABLUnit graphicalMode="@{graphicalMode}" dlcHome="@{dlcHome}"
+                 baseDir="@{baseDir}"
+                 destDir="@{destDir}" relativePaths="true"
+                 tempDir="@{tempDir}"
+                 failOnError="true"
+                 haltOnFailure="true"
+                 compileUnderscore="true"
+
+                 stackSize="10000"
+                 maximumMemory="65534"
+                 inputChars="16000"
+                 token="16000"
+                 cpstream="1252"
+                 cpinternal="1252"
+
+                 writeLog="true">
+
+            <Profiler enabled="true"
+                      outputFile="profile/profile.prof"
+                      coverage="true"
+                      statistics="false"
+                      listings="profile" />
+
+            <Option if:true="${addAssemblies}" name="-assemblies" value="@{assembliesDir}"/>
+            <Option name="-T" value="@{tempDir}"/>
+
+            <DBConnectionSet refid="@{databasesid}" />
+
+            <propath refid="@{propathid}" />
+
+            <fileset refid="@{filesetid}"/>
+        </ABLUnit>
+
+        <!-- convert to format used by sonarqube -->
+        <xslt in="@{destDir}/results.xml"
+              out="@{destDir}/sonar-results.xml"
+              style="tools/sonar-results.xsl" />
+
+        <!-- convert coverage to be usable in report generation -->
+        <coverageconverter profilerInputFile="profile/profile.prof"
+                           coberturaOutputFile="@{destDir}/cobertura-coverage.xml"
+                           genericCoverageOutputFile="@{destDir}/profiler.xml"/>
+
+    </sequential>
+</macrodef>
+
+<macrodef name="coverageconverter">
+    <attribute name="converterExecutable" default="dotnet"/>
+    <attribute name="profilerInputFile" default="profile/profile.prof"/>
+    <attribute name="coberturaOutputFile" default="profile/cobertura.xml"/>
+    <attribute name="genericCoverageOutputFile" default="profile/coverage.xml"/>
+
+    <sequential>
+        <exec executable="dotnet"
+              failonerror="true">
+            <arg value="tools\ABLProfilerConverter.dll"/>  
+            <arg value="@{profilerInputFile}"/>
+            <arg value="@{coberturaOutputFile}"/>
+            <arg value="@{genericCoverageOutputFile}"/>
+        </exec>
+    </sequential>
+</macrodef>
+
+<macrodef name="coveragereport">
+    <attribute name="reportExecutable" default="tools/reportgenerator.exe"/>
+    <attribute name="coverageFile" default="cobertura.xml"/>
+    <attribute name="destinationDir" default="reports"/>
+
+    <sequential>
+        <local name="reportExecutable-full-path"/>
+        <property name="reportExecutable-full-path"
+               location="@{reportExecutable}"/>
+
+        <exec executable="${reportExecutable-full-path}"
+              failonerror="true">
+            <arg value="-reports:@{coverageFile}"/>
+            <arg value="-targetdir:@{destinationDir}"/>
+            <arg value="-reportTypes:HtmlInline"/>
+            <!-- <arg value="-reportTypes:HtmlInline_AzurePipelines_Dark"/> -->
+        </exec>
+    </sequential>
+</macrodef>
+
+<macrodef name="nugetrestore">
+    <attribute name="nugetExecutable" default="tools/nuget.exe"/>
+    <attribute name="packagesFile" default="packages.config"/>
+    <attribute name="destinationDir" default="packages"/>
+
+    <sequential>
+        <local name="nugetExecutable-full-path"/>
+        <property name="nugetExecutable-full-path"
+               location="@{nugetExecutable}"/>
+
+        <exec executable="${nugetExecutable-full-path}"
+              failonerror="true">
+            <arg value="restore"/>
+            <arg value="@{packagesFile}"/>
+            <arg value="-PackagesDirectory"/>
+            <arg value="@{destinationDir}"/>
+        </exec>
+    </sequential>
+</macrodef>
+
+<macrodef name="addpackagestoassemblies">
+    <attribute name="packagesDir" default="packages"/>
+    <attribute name="assembliesDir" default="assemblies"/>
+
+    <sequential>
+        <for param="dir">
+            <path>
+                <dirset dir="@{packagesDir}" includes="*"/>
+            </path>
+            <sequential>
+                <local name="dirToCopy.@{dir}"/>
+
+                <available type="dir" file="@{dir}/lib/net452" property="dirToCopy.@{dir}" value="net452"/>
+                <available unless:set="dirToCopy.@{dir}" type="dir" file="@{dir}/lib/net45-full" property="dirToCopy.@{dir}" value="net45-full"/>
+                <available unless:set="dirToCopy.@{dir}" type="dir" file="@{dir}/lib/net45" property="dirToCopy.@{dir}" value="net45"/>
+                <available unless:set="dirToCopy.@{dir}" type="dir" file="@{dir}/lib/netstandard1.1" property="dirToCopy.@{dir}" value="netstandard1.1"/>
+                <available unless:set="dirToCopy.@{dir}" type="dir" file="@{dir}/lib/netstandard1.0" property="dirToCopy.@{dir}" value="netstandard1.0"/>
+                <!-- <echo if:set="dirToCopy.@{dir}" message="Copying from @{dir}/lib/${dirToCopy.@{dir}}"/> -->
+
+                <copy if:set="dirToCopy.@{dir}" todir="@{assembliesDir}" flatten="true" overwrite="true" verbose="true">
+                    <fileset dir="@{dir}">
+                        <include name="**/lib/${dirToCopy.@{dir}}/**.*"/>
+                        <exclude name="**/_._"/>
+                        <different targetdir="@{assembliesDir}" ignoreFileTimes="true">
+                            <mapper type="flatten"/>
+                        </different>
+                    </fileset>
+                </copy>
+
+            </sequential>
+        </for>
+    </sequential>
+</macrodef>
+
+<macrodef name="addpackagestoassembliesold">
+    <attribute name="packagesDir" default="packages"/>
+    <attribute name="assembliesDir" default="assemblies"/>
+
+    <sequential>
+      <!-- overlay versions -->
+      <copy todir="@{assembliesDir}" flatten="true" overwrite="true">
+        <fileset dir="@{packagesDir}">
+          <include name="**/lib/netstandard1.0/**.*"/>
+          <exclude name="**/_._"/>
+        </fileset>
+      </copy>
+      <copy todir="@{assembliesDir}" flatten="true" overwrite="true">
+        <fileset dir="@{packagesDir}">
+          <include name="**/lib/netstandard1.1/**.*"/>
+          <exclude name="**/_._"/>
+        </fileset>
+      </copy>
+      <copy todir="@{assembliesDir}" flatten="true" overwrite="true">
+        <fileset dir="@{packagesDir}">
+          <include name="**/lib/net45/**.*"/>
+          <exclude name="**/_._"/>
+        </fileset>
+      </copy>
+      <copy todir="@{assembliesDir}" flatten="true" overwrite="true">
+        <fileset dir="@{packagesDir}">
+          <include name="**/lib/net45-full/**.*"/>
+          <exclude name="**/_._"/>
+        </fileset>
+      </copy>
+      <copy todir="@{assembliesDir}" flatten="true" overwrite="true">
+        <fileset dir="@{packagesDir}">
+          <include name="**/lib/net452/**.*"/>
+          <exclude name="**/_._"/>
+        </fileset>
+      </copy>
+    </sequential>
+
+</macrodef>
+
+<macrodef name="oecompile">
+    <attribute name="branch" default="${env.BUILD_BRANCH}"/>
+    <attribute name="changeId" default="${env.BUILD_SHORT_COMMIT}"/>
+
+    <attribute name="dlcHome" default="${env.OEDLC}"/>
+    <attribute name="graphicalMode" default="false"/>
+    <attribute name="baseDir" default="${base.dir}"/>
+    <attribute name="destDir" default="@{baseDir}/build"/>
+    <attribute name="tempDir" default="${env.TEMP_DIR}"/>
+    <attribute name="minSize" default="false"/>
+    <attribute name="metadata" default="false" description="Keep metadata during the compile?"/>
+    <attribute name="displayFiles" default="0"/>
+
+    <attribute name="languages" default=""/>
+
+    <attribute name="databasesid"/>
+    <attribute name="propathid"/>
+    <attribute name="filesetid"/>
+
+    <attribute name="assembliesDir" default=""/>
+    <attribute name="noTTYAssemblies" default="false"/>
+
+    <sequential>
+        <local name="forceCompile"/>
+        <condition property="forceCompile" value="false" else="true">
+            <istrue value="@{metadata}"/>
+        </condition>
+
+        <local name="addAssemblies"/>
+        <condition property="addAssemblies" value="true" else="false">
+            <or>
+              <and>
+                  <not>
+                      <equals arg1="@{assembliesDir}" arg2=""/>
+                  </not>
+                  <istrue value="@{graphicalMode}"/>
+              </and>
+              <and>
+                  <not>
+                      <equals arg1="@{assembliesDir}" arg2=""/>
+                  </not>
+                  <isfalse value="@{graphicalMode}"/>
+                  <isfalse value="@{noTTYAssemblies}"/>
+              </and>
+            </or>
+        </condition>
+
+        <mkdir dir="@{destDir}"/>
+
+        <echo level="info">Building branch=@{branch} ChangeId=@{changeId}
+PCT Compile using:
+ Progress DLC=@{dlcHome}
+  SourceDirectory=@{baseDir}
+  TargetDirectory=@{destDir}
+  Graphical client=@{graphicalMode}
+  Saving Metadata=@{metadata}
+  Assemblies=@{assembliesDir} NoTTYAssemblies=@{noTTYAssemblies} addAssemblies=${addAssemblies}</echo>
+
+        <PCTCompile graphicalMode="@{graphicalMode}" dlcHome="@{dlcHome}" MD5="true"
+                    baseDir="@{baseDir}"
+                    destDir="@{destDir}" relativePaths="true"
+                    tempDir="@{tempDir}"
+                    failOnError="true"
+                    compileUnderscore="true"
+                    stackSize="10000"
+                    maximumMemory="65534"
+                    inputChars="16000"
+                    token="16000"
+                    cpstream="1252"
+                    cpinternal="1252"
+                    minSize="@{minSize}"
+
+                    debugListing="@{metadata}"
+                    listing="@{metadata}"
+                    keepXref="@{metadata}"
+                    forceCompile="@{forceCompile}"
+                    noParse="${forceCompile}"
+                    xmlXref="@{metadata}"
+                    multiCompile="true"
+                    numThreads="1"
+                    displayFiles="@{displayFiles}"
+                    progPerc="10">
+
+                <Option if:true="${addAssemblies}" name="-assemblies" value="@{assembliesDir}"/>
+                <Option name="-T" value="@{tempDir}"/>
+
+                <DBConnectionSet if:set="refid" refid="@{databasesid}" />
+
+                <propath refid="@{propathid}" />
+
+                <fileset refid="@{filesetid}"/>
+          </PCTCompile>
+    </sequential>
+</macrodef>
+
+<macrodef name="buildpl">
+    <attribute name="baseDir" default="@{baseDir}/build/oe11"/>
+    <attribute name="destDir" default="@{baseDir}/build/oe11/pl"/>
+    <attribute name="includes" default="**/*.r"/>
+    <attribute name="excludes" default=""/>
+    <attribute name="libraryFile" default="library.pl"/>
+
+    <sequential>
+        <mkdir dir="@{destDir}"/>
+        <PCTLibrary destfile="@{destDir}/@{libraryFile}"
+                    basedir="@{baseDir}"
+                    includes="@{includes}"
+                    excludes="@{excludes}"/>
+    </sequential>
+</macrodef>
+
+</project>

@@ -24,6 +24,7 @@ CLASS OpenEdge.ABLUnit.Reflection.TestInfo:
     DEFINE PUBLIC PROPERTY testName AS CHARACTER NO-UNDO GET. 
         PRIVATE SET.
     DEFINE PUBLIC PROPERTY isStatic AS LOGICAL INIT FALSE NO-UNDO GET. SET .
+    DEFINE PUBLIC PROPERTY isOnly AS LOGICAL INIT FALSE NO-UNDO GET. SET .
     
     CONSTRUCTOR PUBLIC TestInfo(INPUT annotationInfo AS Array, INPUT annotationsCount AS INTEGER, INPUT testN AS CHARACTER):
         annotations = annotationInfo.    

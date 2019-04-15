@@ -47,6 +47,26 @@ CLASS OpenEdge.ABLUnit.Reflection.AnnotationUtil FINAL:
     END METHOD.
 
     /*------------------------------------------------------------------------------
+     Purpose: Given an Array which contains AnnotationInfo objects this method checks whether there
+                exists an annotation with 'Only'.
+     Notes: 
+    ------------------------------------------------------------------------------*/
+
+    METHOD PUBLIC STATIC LOGICAL HasOnlyAnnotation( annotations AS Array ):
+        DEFINE VARIABLE i AS INTEGER NO-UNDO.
+        DEFINE VARIABLE annotation AS AnnotationInfo NO-UNDO.
+
+        DO i=1 TO annotations:Size ON ERROR UNDO, THROW :
+            annotation = CAST(annotations:GetValue(i), AnnotationInfo).
+            IF annotation NE ? AND annotation:AnnotationType EQ "Only"THEN
+                RETURN TRUE.
+        END.
+        
+        RETURN FALSE.
+
+    END METHOD.
+
+    /*------------------------------------------------------------------------------
      Purpose: Given an Array which contains AnnotationInfo objects this method  
                 returns the expected exception that is configured with test.
      Notes:
