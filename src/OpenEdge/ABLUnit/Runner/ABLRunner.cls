@@ -74,6 +74,7 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
     DEFINE PRIVATE VARIABLE colourFail AS INTEGER NO-UNDO.
     DEFINE PRIVATE VARIABLE colourPending AS INTEGER NO-UNDO.
     DEFINE PRIVATE VARIABLE checkmark AS INTEGER NO-UNDO.
+    DEFINE PRIVATE VARIABLE checkmarkChar AS CHARACTER NO-UNDO.
     DEFINE PRIVATE VARIABLE colourFast AS INTEGER NO-UNDO.
     DEFINE PRIVATE VARIABLE colourGreen AS INTEGER NO-UNDO.
     DEFINE PRIVATE VARIABLE colourMedium AS INTEGER NO-UNDO.
@@ -111,6 +112,8 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
         colourFail = 31.
         colourPending = 36.
         checkmark = 32.
+        checkmarkChar = CHR(251).
+        /*errorChar = "\u00D7".*/
         colourFast = 90.
         colourGreen = 32.
         colourMedium = 33.
@@ -197,13 +200,13 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
       	    DO failure = 1 TO testFailures:Size:
       	      DEFINE VARIABLE testResult AS TestTestResult NO-UNDO.
       	      testResult = CAST(testFailures:Get(failure), TestTestResult).
-      	      MESSAGE colourResetString SUBSTITUTE("&1&2) &3", SetColour(colourErrorTitle), failure, testResult:TestDescription).
+      	      MESSAGE SUBSTITUTE("&1&2) &3&4", SetColour(colourErrorTitle), failure, testResult:TestDescription, colourResetString).
 
               IF testResult:ErrorMessage <> "" THEN DO:
-                MESSAGE SUBSTITUTE("    &1Error: &2", setColour(colourFail), testResult:ErrorMessage).
+                MESSAGE SUBSTITUTE("    &1Error: &2&3", setColour(colourFail), testResult:ErrorMessage, colourResetString).
               END.
               ELSE IF testResult:ERROR:GetMessage(1) <> "" THEN DO:
-                MESSAGE SUBSTITUTE("    &1Error: &2", setColour(colourFail), testResult:Error:GetMessage(1)).
+                MESSAGE SUBSTITUTE("    &1Error: &2&3", setColour(colourFail), testResult:Error:GetMessage(1), colourResetString).
               END.
               /* write out stack trace for error */
               IF testResult:TestResult = TestTestResult:StatusError THEN DO:
@@ -211,11 +214,10 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
                 DEFINE VARIABLE callStackEntry AS INTEGER NO-UNDO.
                 callStack = testResult:Error:CallStack.
                 DO callStackEntry = 1 TO NUM-ENTRIES(callStack, "~n"):
-                  MESSAGE SUBSTITUTE("    &1&2", SetColour(colourErrorStack), ENTRY(callStackEntry, callStack, "~n")).
+                  MESSAGE SUBSTITUTE("    &1&2&3", SetColour(colourErrorStack), ENTRY(callStackEntry, callStack, "~n"), colourResetString).
                 END.
               END.
       	    END.
-      	    MESSAGE colourResetString.
 
       		/* COMPLETE event has to be updated anyway to complete the session. */
           	updateFile(updateFile, "COMPLETE", FALSE).
@@ -1196,7 +1198,7 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
        END METHOD.
 
     METHOD PRIVATE VOID DescribeIgnored(testDescription AS CHARACTER):
-      MESSAGE colourResetString "  -" testDescription.
+      MESSAGE "  -" testDescription colourResetString.
     END METHOD.
     
     METHOD PRIVATE CHARACTER SetColour(colourCode AS INTEGER):
@@ -1208,18 +1210,18 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
     
     METHOD PRIVATE VOID describeFail(testResult AS TestTestResult):
       testFailures:Add(testResult).
-      MESSAGE colourResetString SUBSTITUTE("  &1) &2", testFailures:Size, testResult:TestDescription).
-      MESSAGE SUBSTITUTE("    &1Error: &2", setColour(colourFail), testResult:Error:GetMessage(1)).
+      MESSAGE SUBSTITUTE("  &1) &2&3", testFailures:Size, testResult:TestDescription, colourResetString).
+      MESSAGE SUBSTITUTE("    &1Error: &2&3", setColour(colourFail), testResult:Error:GetMessage(1), colourResetString).
     END METHOD.
 
     METHOD PRIVATE VOID describeException(testResult AS TestTestResult):
       testFailures:Add(testResult).
-      MESSAGE colourResetString SUBSTITUTE("  &1) &2", testFailures:Size, testResult:TestDescription).
+      MESSAGE SUBSTITUTE("  &1) &2&3", testFailures:Size, testResult:TestDescription, colourResetString).
       IF testResult:ErrorMessage <> "" THEN DO:
-        MESSAGE SUBSTITUTE("    &1Error: &2", setColour(colourFail), testResult:ErrorMessage).
+        MESSAGE SUBSTITUTE("    &1Error: &2&3", setColour(colourFail), testResult:ErrorMessage, colourResetString).
       END.
       ELSE IF testResult:ERROR:GetMessage(1) <> "" THEN DO:
-        MESSAGE SUBSTITUTE("    &1Error: &2", setColour(colourFail), testResult:ERROR:GetMessage(1)).
+        MESSAGE SUBSTITUTE("    &1Error: &2&3", setColour(colourFail), testResult:ERROR:GetMessage(1), colourResetString).
       END.
     END METHOD.
 
@@ -1229,16 +1231,16 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
       DEFINE VARIABLE timeTakenString AS CHARACTER NO-UNDO.
       
       IF timeTakenMs > 75 THEN DO:
-        timeTakenString = SUBSTITUTE("&1(&2ms)", setColour(colourSlow), timeTakenMs).
+        timeTakenString = SUBSTITUTE("&1(&2ms)&3", setColour(colourSlow), timeTakenMs, colourResetString).
       END.
       ELSE IF timeTakenMs > (75 / 2) THEN DO:
-        timeTakenString = SUBSTITUTE("&1(&2ms)", setColour(colourMedium), timeTakenMs).
+        timeTakenString = SUBSTITUTE("&1(&2ms)&3", setColour(colourMedium), timeTakenMs, colourResetString).
       END.
       ELSE DO:
-        timeTakenString = SUBSTITUTE("&1" /*"&1(&2ms)"*/, setColour(colourFast), timeTakenMs).
+        timeTakenString = SUBSTITUTE("&1&2" /*"&1(&2ms)"*/, setColour(colourFast), /*timeTakenMs,*/ colourResetString).
       END. 
-      
-      MESSAGE colourResetString SUBSTITUTE("  &1 &2 &3", CHR(251), testResult:TestDescription, timeTakenString).
+
+      MESSAGE SUBSTITUTE("  &1&2&3 &4 &5&6", setColour(colourGreen), checkmarkChar, setColour(colourPass), testResult:TestDescription, timeTakenString, colourResetString).
     END METHOD.
 
     METHOD PRIVATE CHARACTER describeParent(classOrProc AS CHARACTER):
@@ -1250,7 +1252,7 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
         classOrProc = SUBSTRING(classOrProc, R-INDEX(classOrProc, "/") + 1).
       END.
 
-      MESSAGE colourResetString classOrProc.
+      MESSAGE classOrProc colourResetString.
     END METHOD.
 
     METHOD PRIVATE CHARACTER describeTest(classOrProc AS CHARACTER, testCase AS CHARACTER):
@@ -1365,8 +1367,11 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
                        testDescription = DescribeTest(CAST(testEntity , TestClass):classInfo:getClassName(), CAST(testMethod , TestMethod):name).
                      IF(testEntity:Name MATCHES "*.p") THEN
                        testDescription = DescribeTest(CAST(testEntity , TestProcedure):name, CAST(testMethod , TestMethod):name).
+/*MESSAGE "testClass:classInfo:hasOnly=" testClass:classInfo:hasOnly.
+MESSAGE "testMethod:getTestInfo():isOnly=" testMethod:getTestInfo():isOnly.*/
                      IF testClass:classInfo:hasOnly THEN DO:
                        IF NOT testMethod:getTestInfo():isOnly THEN DO:
+/*                         DescribeIgnored(testDescription).*/
                          updateFile(updateFile, "TEST_IGNORED " + STRING(testMethod:Id), FALSE).
                          NEXT _CHILD.     
                        END.
