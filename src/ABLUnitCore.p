@@ -101,7 +101,7 @@ CATCH e AS Error:
             LOG-MANAGER:CLOSE-LOG.
         END.
     IF testConfig:ShowErrorMessage THEN
-        MESSAGE e:GetMessage(1)
+        MESSAGE e:GetMessage(1) skip e:CallStack
         VIEW-AS ALERT-BOX ERROR.
     IF testConfig:ThrowError THEN
         UNDO, THROW e.

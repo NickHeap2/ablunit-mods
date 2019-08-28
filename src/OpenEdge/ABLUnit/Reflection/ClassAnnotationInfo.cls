@@ -1,15 +1,15 @@
 /************************************************
 Copyright (c)  2013-2016 by Progress Software Corporation. All rights reserved.
-*************************************************/ 
+*************************************************/
 /*------------------------------------------------------------------------
    File        : ClassAnnotationInfo
    Purpose     : Stores the information related to the Before, Setup, Test, TearDown, After annotations in
-                 the test class. Contains methods to run specific annotated methods.  
-   Syntax      : 
-   Description : 
+                 the test class. Contains methods to run specific annotated methods.
+   Syntax      :
+   Description :
    Author(s)   : hgarapat
    Created     : Mon Jul 23 11:21:50 IST 2012
-   Notes       : 
+   Notes       :
  ----------------------------------------------------------------------*/
 
 USING OpenEdge.Core.AssertionFailedError.
@@ -22,7 +22,7 @@ USING OpenEdge.ABLUnit.Results.TestTypeResult.
 USING OpenEdge.Core.Collections.Array.
 USING OpenEdge.ABLUnit.Reflection.AnnotationUtil.
 
-CLASS OpenEdge.ABLUnit.Reflection.ClassAnnotationInfo: 
+CLASS OpenEdge.ABLUnit.Reflection.ClassAnnotationInfo:
 
     DEFINE PRIVATE VARIABLE beforeClassMethod AS  TestInfo   NO-UNDO.
     DEFINE PRIVATE VARIABLE beforeMethod      AS TestInfo    NO-UNDO.
@@ -31,12 +31,12 @@ CLASS OpenEdge.ABLUnit.Reflection.ClassAnnotationInfo:
     DEFINE PRIVATE VARIABLE afterMethod       AS TestInfo    NO-UNDO.
     DEFINE PRIVATE VARIABLE afterClassMethod  AS TestInfo    NO-UNDO.
     DEFINE PRIVATE VARIABLE testMethodResult  AS TestTestResult NO-UNDO.
-    
+
     /*------------------------------------------------------------------------------
 	 Purpose:
 	 Notes:
 	------------------------------------------------------------------------------*/
-		
+
 	CONSTRUCTOR PUBLIC ClassAnnotationInfo (  ):
 		SUPER ().
 		testList = NEW Array().
@@ -46,68 +46,68 @@ CLASS OpenEdge.ABLUnit.Reflection.ClassAnnotationInfo:
     METHOD PUBLIC VOID setBeforeClass(INPUT bClass AS TestInfo):
         IF beforeClassMethod = ? THEN
             beforeClassMethod= bClass.
-        ELSE 
+        ELSE
             throwError().
     END METHOD.
-	
+
 	METHOD PUBLIC CHARACTER getBeforeClass():
 	    RETURN beforeClassMethod:getTestName().
 	END METHOD.
-	
+
 	METHOD PUBLIC CHARACTER getAfterClass():
         RETURN afterClassMethod:getTestName().
     END METHOD.
-    
+
     METHOD PUBLIC Array getTestList():
         RETURN testList.
     END METHOD.
-    
+
     METHOD PUBLIC VOID setAfterClass(INPUT aClass AS TestInfo):
         IF afterClassMethod = ? THEN
             afterClassMethod= aClass.
-        ELSE 
+        ELSE
             throwError().
     END METHOD.
-    
+
     METHOD PUBLIC VOID setBeforeMethod(INPUT bMethod AS TestInfo):
         IF beforeMethod = ? THEN
             beforeMethod = bMethod.
-        ELSE 
+        ELSE
             throwError().
     END METHOD.
-    
+
     METHOD PUBLIC VOID setAfterMethod(INPUT aMethod AS TestInfo):
         IF afterMethod = ? THEN
             afterMethod = aMethod.
-        ELSE 
+        ELSE
             throwError().
     END METHOD.
-    
+
     METHOD PUBLIC VOID AddTestMethod(INPUT tMethod AS TestInfo):
         testCount = testCount + 1.
         testList:SetValue(tMethod, testCount).
     END METHOD.
-   
+
     /*------------------------------------------------------------------------------
-        Runs the @Before annotated method.    
+        Runs the @Before annotated method.
     ------------------------------------------------------------------------------*/
-    METHOD PUBLIC TestTypeResult RunBeforeClass(INPUT testClassType AS Progress.Lang.Object, 
+    METHOD PUBLIC TestTypeResult RunBeforeClass(INPUT testClassType AS Progress.Lang.Object,
         INPUT testClassResult AS TestTypeResult ):
-        IF NOT beforeClassMethod = ? AND NOT testList:size = 0 THEN 
+        IF NOT beforeClassMethod = ? AND NOT testList:size = 0 THEN
         DO ON ERROR UNDO, THROW:
             Invoke(testClassType, beforeClassMethod:getTestName()).
             CATCH e AS Progress.Lang.Error :
-                RETURN ERROR e.        		
+                RETURN ERROR e.
             END CATCH.
         END.
-        RETURN testClassResult.    
+        RETURN testClassResult.
     END METHOD.
-    
+
     /*------------------------------------------------------------------------------
         Runs the @Setup annotated method
         This method will be exectuted before executing each test method.
     ------------------------------------------------------------------------------*/
-    METHOD PUBLIC VOID RunBeforeMethod(INPUT testClassType AS Progress.Lang.Object, 
+    METHOD PUBLIC VOID RunBeforeMethod(INPUT testClassType AS Progress.Lang.Object,
         INPUT testResult AS TestTestResult):
         IF NOT beforeMethod = ? THEN
         DO ON ERROR UNDO, THROW:
@@ -117,7 +117,7 @@ CLASS OpenEdge.ABLUnit.Reflection.ClassAnnotationInfo:
             END CATCH.
         END.
     END METHOD.
-    
+
     /*------------------------------------------------------------------------------
         Runs a particular test method denoted by OpenEdge.ABLUnit.Reflection.TestInfo
     ------------------------------------------------------------------------------*/
@@ -125,7 +125,7 @@ CLASS OpenEdge.ABLUnit.Reflection.ClassAnnotationInfo:
         DEFINE VARIABLE testResult AS TestTestResult  NO-UNDO.
         DEFINE VARIABLE ignoreTest AS LOGICAL NO-UNDO.
         testResult = NEW TestTestResult().
-        
+
         // Check whether the test method is ignored
         ignoreTest = AnnotationUtil:HasIgnoreAnnotation(testMethod:annotations).
         IF ignoreTest THEN DO:
@@ -133,7 +133,7 @@ CLASS OpenEdge.ABLUnit.Reflection.ClassAnnotationInfo:
             testResult:TestName = testMethod:getTestName().
             RETURN testResult.
         END.
-        
+
         RunBeforeMethod(testClassType, testResult).
         RunTestMethod(testClassType, testResult, testMethod).
         CATCH err AS AssertionFailedError :
@@ -168,14 +168,14 @@ CLASS OpenEdge.ABLUnit.Reflection.ClassAnnotationInfo:
             END FINALLY.
         END FINALLY.
     END METHOD.
-    
+
    /*------------------------------------------------------------------------------
         Invokes instance method.
     ------------------------------------------------------------------------------*/
     METHOD PUBLIC STATIC VOID Invoke(INPUT obj AS Progress.Lang.Object, INPUT testMethod AS CHARACTER):
         DYNAMIC-INVOKE (obj, testMethod).
         CATCH e AS Progress.Lang.Error :
-            RETURN ERROR e.	
+            RETURN ERROR e.
         END CATCH.
     END METHOD.
 
@@ -185,10 +185,10 @@ CLASS OpenEdge.ABLUnit.Reflection.ClassAnnotationInfo:
     METHOD PUBLIC STATIC VOID invokeStatic(INPUT obj AS Progress.Lang.Object, INPUT testMethod AS CHARACTER):
         DYNAMIC-INVOKE (obj:GetClass():TypeName, testMethod).
         CATCH e AS Progress.Lang.Error :
-            RETURN ERROR e. 
+            RETURN ERROR e.
         END CATCH.
     END METHOD.
-    
+
     /*------------------------------------------------------------------------------
         Runs a particular @Test method
     ------------------------------------------------------------------------------*/
@@ -197,13 +197,13 @@ CLASS OpenEdge.ABLUnit.Reflection.ClassAnnotationInfo:
 /*        DEFINE VARIABLE annotations AS Array NO-UNDO.        */
 /*        DEFINE VARIABLE annotation AS AnnotationInfo NO-UNDO.*/
         DEFINE VARIABLE exception AS Progress.Lang.Error NO-UNDO.
-        
+
 /*        annotations = testMethod:annotations.                       */
 /*        /** considering only the 1st annotation for now**/          */
 /*        annotation = CAST(annotations:GetValue(1), AnnotationInfo ).*/
 
         expectedException = AnnotationUtil:GetExpectedExceptionName(testMethod:annotations).
-       
+
         IF testMethod:isStatic THEN
             invokeStatic(testClassType, testMethod:getTestName()).
         ELSE
@@ -243,7 +243,7 @@ CLASS OpenEdge.ABLUnit.Reflection.ClassAnnotationInfo:
                 testResult:TestResult = TestTestResult:StatusPassed.
                 testResult:TestName = testMethod:getTestName().
             END.
-            ELSE 
+            ELSE
             DO:
                 testResult:TestResult = OpenEdge.ABLUnit.Results.TestTestResult:StatusFailed.
                 testResult:TestName = testMethod:getTestName().
@@ -252,25 +252,25 @@ CLASS OpenEdge.ABLUnit.Reflection.ClassAnnotationInfo:
             END.
         END CATCH.
         FINALLY:
-            RETURN testResult.	
+            RETURN testResult.
         END FINALLY.
     END METHOD.
-    
+
     /*----------------------------------------------------------------------------
         Expands the given expected error type if it is a recognised abbreviation.
       ----------------------------------------------------------------------------*/
     METHOD PUBLIC STATIC CHARACTER GetExpectedErrorType(INPUT expectedError AS CHARACTER):
-    
+
         /* Add the package name for recognised error types */
         CASE expectedError:
-            WHEN "Error"           
-            OR 
+            WHEN "Error"
+            OR
             WHEN "AppError"
-            OR 
+            OR
             WHEN "ProError"
-            OR 
-            WHEN "SoapFaultError"          
-            OR 
+            OR
+            WHEN "SoapFaultError"
+            OR
             WHEN "SysError" THEN
                 RETURN "Progress.Lang." + expectedError.
             WHEN "Stop"
@@ -282,7 +282,7 @@ CLASS OpenEdge.ABLUnit.Reflection.ClassAnnotationInfo:
     END METHOD.
 
     /*----------------------------------------------------------------------------
-      Returns true if the given object can be cast to the given type. Otherwise 
+      Returns true if the given object can be cast to the given type. Otherwise
       returns false.
     ----------------------------------------------------------------------------*/
     METHOD PUBLIC STATIC LOGICAL IsTypeOf(INPUT obj AS Progress.Lang.Object, INPUT castType AS CHARACTER):
@@ -293,12 +293,12 @@ CLASS OpenEdge.ABLUnit.Reflection.ClassAnnotationInfo:
             RETURN FALSE.
         RETURN TRUE.
     END METHOD.
-  
+
     /*------------------------------------------------------------------------------
     Runs @TearDown annotated method.
     This method will be exectuted after executing each test method
     ------------------------------------------------------------------------------*/
-    METHOD PUBLIC VOID RunAfterMethod(INPUT testClassType AS Progress.Lang.Object, 
+    METHOD PUBLIC VOID RunAfterMethod(INPUT testClassType AS Progress.Lang.Object,
         INPUT testResult AS OpenEdge.ABLUnit.Results.TestTestResult):
         IF NOT afterMethod = ? THEN
         DO ON ERROR UNDO, THROW:
@@ -324,10 +324,10 @@ CLASS OpenEdge.ABLUnit.Reflection.ClassAnnotationInfo:
     END METHOD.
 
     /*------------------------------------------------------------------------------
-        Throws error for multiple occurence of lifecycle methods   
+        Throws error for multiple occurence of lifecycle methods
     ------------------------------------------------------------------------------*/
     METHOD PRIVATE VOID throwError( ):
         RETURN ERROR NEW Progress.Lang.AppError("Life cycle annotations can not occur more than once.", 0).
     END METHOD.
-    
+
 END CLASS.

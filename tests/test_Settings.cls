@@ -1,0 +1,42 @@
+USING OpenEdge.Core.Assert.
+USING Progress.Json.ObjectModel.*.
+USING Progress.Lang.*.
+
+BLOCK-LEVEL ON ERROR UNDO, THROW.
+
+CLASS test_Settings:
+
+  @Setup.
+  METHOD PUBLIC VOID setUp(  ):
+
+  END METHOD.
+
+  @Test.
+  METHOD PUBLIC VOID canMessage1(  ):
+
+    MESSAGE "1".
+
+  END METHOD.
+
+  @Test.
+  @Only.
+/*  @Ignore.*/
+  METHOD PUBLIC VOID canMessage2(  ):
+
+    MESSAGE "2".
+
+  END METHOD.
+
+  @Test.
+  METHOD PUBLIC VOID canMessage3(  ):
+
+    MESSAGE "3".
+
+  END METHOD.
+
+  @TearDown.
+  METHOD PUBLIC VOID tearDown(  ):
+
+  END METHOD.
+
+END CLASS.

@@ -25,6 +25,19 @@
         <include name="**/*.cls"/>
     </fileset>
 
+    <!-- propath tests set -->
+    <path id="propath_ablunit_tests">
+        <pathelement path="build/oe11/pl/ABLUnitMods.pl"/>
+        <pathelement path="tests"/>
+        <pathelement path="src"/>
+    </path>
+
+    <!-- compile tests files set -->
+    <fileset dir="tests" id="fileset_ablunit_tests">
+        <include name="**/*.p"/>
+        <include name="**/*.cls"/>
+    </fileset>
+
     <target name="build" depends="init,compile"/>
 
     <target name="init" depends="" description="Prepare for compile">
@@ -51,5 +64,32 @@
       <buildpl baseDir="build/oe11/"
                destDir="build/oe11/pl/"
                libraryFile="ABLUnitMods.pl"/>
+    </target>
+
+    <!-- test -->
+    <target name="test" description="Test" depends="">
+      <property name="absolute.temp" location="${env.TEMP_DIR}"/>
+
+      <oecompile baseDir="tests"
+                 databasesid=""
+                 propathid="propath_ablunit_tests"
+                 filesetid="fileset_ablunit_tests"
+                 tempDir="${absolute.temp}"
+                 destDir="build/tests/"
+                 assembliesDir=""
+                 metadata="false"/>
+
+      <property name="absolute.temp" location="${env.TEMP_DIR}"/>
+
+      <oetest baseDir="tests"
+              databasesid=""
+              propathid="propath_ablunit_tests"
+              filesetid="fileset_ablunit_tests"
+              tempDir="${absolute.temp}"
+              destDir="build/tests/"
+              assembliesDir=""
+              noSonar="true"
+              noCoverage="true"
+              />
     </target>
 </project>

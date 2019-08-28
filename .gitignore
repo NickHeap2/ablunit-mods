@@ -1,3 +1,10 @@
-build/
+/.metadata/
+/build/
+/ablunit/
+tools/packages/
 rcode/
-.settings/
+profile/
+packages/
+assemblies/
+dotnet.log
+.vscode/

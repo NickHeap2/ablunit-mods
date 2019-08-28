@@ -2,17 +2,22 @@
   "autoTargets": [
     {
       "filePattern": "build.xml",
-      "runTargets": "compile",
+      "runTargets": "compile test",
       "initialDelayMs": 1000
     },
     {
       "filePattern": "macrodefs.xml",
-      "runTargets": "compile",
+      "runTargets": "compile test",
+      "initialDelayMs": 1000
+    },
+    {
+      "filePattern": "tests/*.{p,w,i,cls}",
+      "runTargets": "test",
       "initialDelayMs": 1000
     },
     {
       "filePattern": "**/*.{p,w,i,cls}",
-      "runTargets": "compile",
+      "runTargets": "compile test",
       "initialDelayMs": 1000
     }  ],
   "disabled": [
