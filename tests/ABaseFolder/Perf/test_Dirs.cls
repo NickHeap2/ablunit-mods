@@ -4,7 +4,8 @@ USING Progress.Lang.*.
 
 BLOCK-LEVEL ON ERROR UNDO, THROW.
 
-CLASS test_Settings:
+@Only.
+CLASS ABaseFolder.Perf.test_Dirs:
 
   @Setup.
   METHOD PUBLIC VOID setUp(  ):
@@ -12,24 +13,9 @@ CLASS test_Settings:
   END METHOD.
 
   @Test.
-  METHOD PUBLIC VOID canMessage1(  ):
+  METHOD PUBLIC VOID canRunInPFolder(  ):
 
     MESSAGE "1".
-
-  END METHOD.
-
-  @Test.
-/*  @Ignore.*/
-  METHOD PUBLIC VOID canMessage2(  ):
-
-    MESSAGE "2".
-
-  END METHOD.
-
-  @Test.
-  METHOD PUBLIC VOID canMessage3(  ):
-
-    MESSAGE "3".
 
   END METHOD.
 

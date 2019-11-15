@@ -1,15 +1,15 @@
 /************************************************
 Copyright (c)  2013-2017 by Progress Software Corporation. All rights reserved.
-*************************************************/ 
+*************************************************/
 /*------------------------------------------------------------------------
    File        : ProcedureAnnotationInfo
    Purpose     : Stores the information related to the Before, Setup, Test, TearDown, After annotations in
                  the test procedure. Contains methods to run specific annotated procedures.
-   Syntax      : 
-   Description : 
+   Syntax      :
+   Description :
    Author(s)   : hgarapat
    Created     : Tue Jul 24 11:36:16 IST 2012
-   Notes       : 
+   Notes       :
  ----------------------------------------------------------------------*/
 
 
@@ -22,8 +22,8 @@ USING OpenEdge.Core.Collections.Array.
 USING OpenEdge.ABLUnit.Reflection.ClassAnnotationInfo.
 USING OpenEdge.ABLUnit.Reflection.AnnotationUtil FROM PROPATH.
 
-CLASS OpenEdge.ABLUnit.Reflection.ProcedureAnnotationInfo: 
-    
+CLASS OpenEdge.ABLUnit.Reflection.ProcedureAnnotationInfo:
+
     DEFINE PRIVATE VARIABLE beforeProcMethod   AS  TestInfo   NO-UNDO.
     DEFINE PRIVATE VARIABLE beforeMethod       AS TestInfo    NO-UNDO.
     DEFINE PRIVATE VARIABLE testList           AS Array NO-UNDO.
@@ -31,63 +31,63 @@ CLASS OpenEdge.ABLUnit.Reflection.ProcedureAnnotationInfo:
     DEFINE PRIVATE VARIABLE afterMethod        AS TestInfo    NO-UNDO.
     DEFINE PRIVATE VARIABLE afterProcMethod    AS TestInfo    NO-UNDO.
     DEFINE PRIVATE VARIABLE testInProcResult   AS TestTestResult NO-UNDO.
-    
+
     /*------------------------------------------------------------------------------
      Purpose:
      Notes:
     ------------------------------------------------------------------------------*/
-        
+
     CONSTRUCTOR PUBLIC ProcedureAnnotationInfo (  ):
         SUPER ().
         testList = NEW Array().
         testList:AutoExpand = TRUE.
     END CONSTRUCTOR.
-    
+
     METHOD PUBLIC VOID setBeforeProcedure(INPUT bProc AS TestInfo):
         IF beforeProcMethod = ? THEN
             beforeProcMethod = bProc.
-        ELSE 
+        ELSE
             throwError().
     END METHOD.
-    
+
     METHOD PUBLIC VOID setAfterProcedure(INPUT aProc AS TestInfo):
         IF afterProcMethod = ? THEN
             afterProcMethod = aProc.
-        ELSE 
+        ELSE
             throwError().
     END METHOD.
-    
+
     METHOD PUBLIC VOID setBefore(INPUT beforeProc AS TestInfo):
         IF beforeMethod = ? THEN
             beforeMethod = beforeProc.
-        ELSE 
+        ELSE
             throwError().
     END METHOD.
-    
+
     METHOD PUBLIC VOID setAfter(INPUT afterProc AS TestInfo):
         IF afterMethod = ? THEN
             afterMethod = afterProc.
-        ELSE 
+        ELSE
             throwError().
     END METHOD.
-    
+
     METHOD PUBLIC VOID addTestProc(INPUT tProc AS TestInfo):
         testCount = testCount + 1.
         testList:SetValue(tProc, testCount).
     END METHOD.
-    
+
     METHOD PUBLIC CHARACTER getBeforeProcedure():
         RETURN beforeProcMethod:getTestName().
     END METHOD.
-    
+
     METHOD PUBLIC CHARACTER getAfterProcedure():
         RETURN afterProcMethod:getTestName().
     END METHOD.
-    
+
     METHOD PUBLIC Array getTestProcs():
         RETURN testList.
     END METHOD.
-    
+
     /*------------------------------------------------------------------------------
     Runs @Before annotated procedure
     ------------------------------------------------------------------------------*/
@@ -108,7 +108,7 @@ CLASS OpenEdge.ABLUnit.Reflection.ProcedureAnnotationInfo:
     This procedure will be run before each test procedure runs.
     ------------------------------------------------------------------------------*/
     METHOD PUBLIC TestTestResult RunBefore(INPUT procHandle AS HANDLE, INPUT testProcResult AS TestTestResult):
-        IF NOT beforeMethod = ? THEN 
+        IF NOT beforeMethod = ? THEN
         DO ON ERROR UNDO, THROW:
             DEFINE VARIABLE before AS CHARACTER NO-UNDO.
             before = beforeMethod:getTestName().
@@ -118,7 +118,7 @@ CLASS OpenEdge.ABLUnit.Reflection.ProcedureAnnotationInfo:
         END.
         RETURN testProcResult.
     END METHOD.
-    
+
     /*------------------------------------------------------------------------------
     Runs a particular @Test annotated procedure
     ------------------------------------------------------------------------------*/
@@ -128,9 +128,9 @@ CLASS OpenEdge.ABLUnit.Reflection.ProcedureAnnotationInfo:
          CATCH e AS Progress.Lang.Error :
              RETURN ERROR e.
         END CATCH.
-   
+
     END METHOD.
-    
+
     /*------------------------------------------------------------------------------
     Runs all @Test annotated procedure
     ------------------------------------------------------------------------------*/
@@ -139,20 +139,20 @@ CLASS OpenEdge.ABLUnit.Reflection.ProcedureAnnotationInfo:
         DEFINE VARIABLE ignoreTest AS LOGICAL NO-UNDO.
         testInProcResult = NEW TestTestResult().
 
-        // Check whether the test proc is ignored
+        /* Check whether the test proc is ignored */
         ignoreTest = AnnotationUtil:HasIgnoreAnnotation(testProc:annotations).
         IF ignoreTest THEN DO:
             testInProcResult:TestResult = TestTestResult:StatusIgnored.
             testInProcResult:TestName = testProc:getTestName().
             RETURN testInProcResult.
         END.
-        
-        // Expected exception
+
+        /* Expected exception */
         expectedException = AnnotationUtil:GetExpectedExceptionName(testProc:annotations).
-                
+
         RunBefore(procHandle, testInProcResult).
         RunTestProc(procHandle, testProc, testInProcResult).
-        
+
         /*Ensure that the execution proceeds normally and there are no expected exceptions*/
         IF expectedException = "" THEN DO:
             testInProcResult:TestResult = TestTestResult:StatusPassed.
@@ -189,7 +189,7 @@ CLASS OpenEdge.ABLUnit.Reflection.ProcedureAnnotationInfo:
                 testInProcResult:TestResult = TestTestResult:StatusPassed.
                 testInProcResult:TestName = testProc:getTestName().
             END.
-            ELSE 
+            ELSE
             DO:
                 testInProcResult:TestResult = OpenEdge.ABLUnit.Results.TestTestResult:StatusFailed.
                 testInProcResult:TestName = testProc:getTestName().
@@ -205,17 +205,17 @@ CLASS OpenEdge.ABLUnit.Reflection.ProcedureAnnotationInfo:
                 updateTestResult(testInProcResult, e, testProc).
             END CATCH.
             FINALLY:
-                RETURN testInProcResult.    
+                RETURN testInProcResult.
             END FINALLY.
         END FINALLY.
     END METHOD.
-        
+
     METHOD PUBLIC VOID updateTestResult(INPUT testResult AS TestTestResult,INPUT err AS Progress.Lang.Error,  INPUT testProc AS TestInfo):
             testResult:TestName = testProc:getTestName().
             testResult:IsIncomplete = TRUE.
             testResult:Error = err.
         END METHOD.
-    
+
     /*------------------------------------------------------------------------------
     Runs @TearDown annotated procedure
     This procedure will be run after each test procedure runs.
@@ -226,11 +226,11 @@ CLASS OpenEdge.ABLUnit.Reflection.ProcedureAnnotationInfo:
             DEFINE VARIABLE after AS CHARACTER NO-UNDO.
             after = afterMethod:getTestName().
             RUN value (after) IN procHandle NO-ERROR.
-            IF (ERROR-STATUS:ERROR) THEN 
+            IF (ERROR-STATUS:ERROR) THEN
                 RETURN ERROR "Exception in @TearDown procedure".
         END.
-    END METHOD.    
-    
+    END METHOD.
+
     /*------------------------------------------------------------------------------
     Runs @After annotated procedure.
     ------------------------------------------------------------------------------*/
@@ -246,13 +246,13 @@ CLASS OpenEdge.ABLUnit.Reflection.ProcedureAnnotationInfo:
     END METHOD.
 
     METHOD PUBLIC VOID TestMethod(  ):
-        
+
         RETURN ERROR NEW Progress.Lang.AppError().
 
     END METHOD.
 
     /*------------------------------------------------------------------------------
-        Throws error for multiple occurence of lifecycle methods   
+        Throws error for multiple occurence of lifecycle methods
     ------------------------------------------------------------------------------*/
     METHOD PRIVATE VOID throwError( ):
         RETURN ERROR NEW Progress.Lang.AppError("Life cycle annotations can not occur more than once.", 0).

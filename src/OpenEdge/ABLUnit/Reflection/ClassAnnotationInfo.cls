@@ -126,7 +126,7 @@ CLASS OpenEdge.ABLUnit.Reflection.ClassAnnotationInfo:
         DEFINE VARIABLE ignoreTest AS LOGICAL NO-UNDO.
         testResult = NEW TestTestResult().
 
-        // Check whether the test method is ignored
+        /* Check whether the test method is ignored */
         ignoreTest = AnnotationUtil:HasIgnoreAnnotation(testMethod:annotations).
         IF ignoreTest THEN DO:
             testResult:TestResult = TestTestResult:StatusIgnored.

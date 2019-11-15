@@ -200,7 +200,7 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
       	    DO failure = 1 TO testFailures:Size:
       	      DEFINE VARIABLE testResult AS TestTestResult NO-UNDO.
       	      testResult = CAST(testFailures:Get(failure), TestTestResult).
-      	      MESSAGE SUBSTITUTE("&1&2) &3&4", SetColour(colourErrorTitle), failure, testResult:TestDescription, colourResetString).
+      	      MESSAGE SUBSTITUTE("&1&2) &3 &4&5", SetColour(colourErrorTitle), failure, testResult:ParentDescription, testResult:TestDescription, colourResetString).
 
               IF testResult:ErrorMessage <> "" THEN DO:
                 MESSAGE SUBSTITUTE("    &1Error: &2&3", setColour(colourFail), testResult:ErrorMessage, colourResetString).
@@ -264,7 +264,7 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
         IF NOT SESSION:DEBUG-ALERT THEN
             OS-DELETE value(xrefFile).
 
-        // MESSAGE "  Methods (" + STRING(typeInfo:methodsCount) + ").".
+        /* MESSAGE "  Methods (" + STRING(typeInfo:methodsCount) + ").". */
 
         RETURN typeInfo.
 
@@ -384,7 +384,7 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
                                  isTestSuiteClass = AnnotationUtil:HasAnnotation(annotationsInfo, "TestSuite").
                                  IF isTestSuiteClass THEN
                                     LEAVE.
-                                 // Done processing class level annotations, reset annotaions here.
+                                 /* Done processing class level annotations, reset annotaions here. */
                                  annotationsCount = 0.
                                  annotationInfo = ?.
                                  annotationsInfo = NEW Array().
@@ -498,7 +498,7 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
         methodInfoList = typeInfo:methods.
         classAnnotInfo = NEW ClassAnnotationInfo().
 
-        // Check whether the test method is ignored
+        /* Check whether the test method is ignored */
         ignoreTest = AnnotationUtil:HasIgnoreAnnotation(typeInfo:classInfo:annotationsInfo).
 
         /*
@@ -573,7 +573,7 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
             testSuite:Name = testClassName.
             testModel:addTestEntity(testSuite).
             testSuite:classInfo = typeInfo:classInfo.
-            // Check whether the suite class is ignored
+            /* Check whether the suite class is ignored */
             IF ignoreTest THEN
                 UpdateIgnoreDetails(testResult, testSuite, testClassName, summaryResult).
             ELSE
@@ -587,7 +587,7 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
             testClass:AnnotationInfo = classAnnotInfo.
             testClass:classInfo = typeInfo:classInfo.
             testEntity:addTestEntity(testClass).
-            // Check whether the class is ignored
+            /* Check whether the class is ignored */
             IF ignoreTest THEN
                 UpdateIgnoreDetails(testResult, testClass, testClassName, summaryResult).
             ELSE
@@ -793,7 +793,7 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
             currentID = currentID + 1.
             testProcSuite:Name = testSuiteName.
             testEntity:addTestEntity(testProcSuite).
-            // Check whether the suite proc is ignored
+            /* Check whether the suite proc is ignored */
             IF ignoreTest THEN
             DO:
                 DEFINE VARIABLE testResult AS TestTestResult NO-UNDO.
@@ -1260,7 +1260,15 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
         classOrProc = SUBSTRING(classOrProc, R-INDEX(classOrProc, "/") + 1).
       END.
 
+      IF classOrProc MATCHES "*~.p" THEN DO:
+        classOrProc = SUBSTRING(classOrProc, 1, LENGTH(classOrProc) - 2).
+      END.
+      classOrProc = REPLACE(classOrProc, "-", " ").
+      classOrProc = REPLACE(classOrProc, "_", " ").
+
       MESSAGE classOrProc colourResetString.
+
+      RETURN classOrProc.
     END METHOD.
 
     METHOD PRIVATE CHARACTER describeTest(classOrProc AS CHARACTER, testCase AS CHARACTER):
@@ -1270,13 +1278,6 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
       DEFINE VARIABLE cChar AS CHARACTER NO-UNDO.
       DEFINE VARIABLE iChar AS INTEGER NO-UNDO.
       DEFINE VARIABLE iAsc AS INTEGER NO-UNDO.
-
-      IF INDEX(classOrProc, "~\") > 0 THEN DO:
-        classOrProc = SUBSTRING(classOrProc, R-INDEX(classOrProc, "~\") + 1).
-      END.
-      IF INDEX(classOrProc, "/") > 0 THEN DO:
-        classOrProc = SUBSTRING(classOrProc, R-INDEX(classOrProc, "/") + 1).
-      END.
 
       DO iChar = 1 TO LENGTH(testCase):
         cChar = SUBSTRING(testCase, iChar, 1).
@@ -1325,7 +1326,7 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
         DO:
             updateFile(updateFile, "TEST_IGNORED " + STRING(testEntity:Id), FALSE).
             timeString = 0.
-            // timeString = timeString / 1000.
+            /* timeString = timeString / 1000. */
             testEntity:TimeTaken = timeString.
             updateFile(updateFile, "TEST_END " + STRING(testEntity:Id) + " " + STRING(timeString) , FALSE).
             RETURN.
@@ -1335,6 +1336,12 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
         children = testEntity:getTestEntities().
         childrenSize = testEntity:getChildrenSize().
 
+        DEFINE VARIABLE parentDescription AS CHARACTER NO-UNDO.
+        IF(testEntity:Name MATCHES "*.cls") THEN
+          parentDescription = DescribeParent(CAST(testEntity , TestClass):classInfo:getClassName()).
+        ELSE IF(testEntity:Name MATCHES "*.p") THEN
+          parentDescription = DescribeParent(CAST(testEntity , TestProcedure):name).
+
         DEFINE VARIABLE onlyIsPresent AS LOGICAL INITIAL FALSE NO-UNDO.
         IF(TYPE-OF (testEntity , TestClass)) THEN
         DO:
@@ -1342,6 +1349,9 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
             testClass = CAST(testEntity, TestClass).
             className = testClass:classInfo:getClassName().
             testClassType = DYNAMIC-NEW className () NO-ERROR.
+            IF ERROR-STATUS:ERROR THEN DO:
+              MESSAGE ERROR-STATUS:GET-MESSAGE(1).
+            END.
             classEntity =   CAST(testEntity , TestClass).
             classAnnotationInfo = classEntity:AnnotationInfo.
             classAnnotationInfo:RunBeforeClass(testClassType, summaryResult).
@@ -1349,16 +1359,13 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
         ELSE IF(TYPE-OF (testEntity , TestProcedure)) THEN
         DO:
             RUN value(testEntity:Name) PERSISTENT SET procHandle NO-ERROR.
+            IF ERROR-STATUS:ERROR THEN DO:
+              MESSAGE ERROR-STATUS:GET-MESSAGE(1).
+            END.
             procedureEntity =   CAST(testEntity , TestProcedure).
             procedureAnnotInfo = procedureEntity:annotationInfo.
             procedureAnnotInfo:RunBeforeProcedure(procHandle, summaryResult).
         END.
-
-        DEFINE VARIABLE parentDescription AS CHARACTER NO-UNDO.
-        IF(testEntity:Name MATCHES "*.cls") THEN
-          parentDescription = DescribeParent(CAST(testEntity , TestClass):classInfo:getClassName()).
-        IF(testEntity:Name MATCHES "*.p") THEN
-          parentDescription = DescribeParent(CAST(testEntity , TestProcedure):name).
 
         _CHILD:
         DO j = 1 TO childrenSize:
@@ -1375,8 +1382,9 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
                        testDescription = DescribeTest(CAST(testEntity , TestClass):classInfo:getClassName(), CAST(testMethod , TestMethod):name).
                      IF(testEntity:Name MATCHES "*.p") THEN
                        testDescription = DescribeTest(CAST(testEntity , TestProcedure):name, CAST(testMethod , TestMethod):name).
-/*MESSAGE "testClass:classInfo:hasOnly=" testClass:classInfo:hasOnly.
-MESSAGE "testMethod:getTestInfo():isOnly=" testMethod:getTestInfo():isOnly.*/
+/* MESSAGE "testClass:classInfo:isOnly=" testClass:classInfo:isOnly.
+MESSAGE "testClass:classInfo:hasOnly=" testClass:classInfo:hasOnly.
+MESSAGE "testMethod:getTestInfo():isOnly=" testMethod:getTestInfo():isOnly. */
                     DEFINE VARIABLE testWasExcluded AS LOGICAL NO-UNDO.
 
                     testWasExcluded = FALSE.
@@ -1402,6 +1410,7 @@ MESSAGE "testMethod:getTestInfo():isOnly=" testMethod:getTestInfo():isOnly.*/
                        testResult = runTestProcedure(CAST(testEntity , TestProcedure), testMethodEntity:getTestInfo(), testMethod, procHandle).
 
                      testResult:TestDescription = testDescription.
+                     testResult:ParentDescription = parentDescription.
 
                      testMethodEntity:TestResult = testResult.
                      updateTestSummary(summaryResult, testResult).

@@ -4,7 +4,7 @@ USING Progress.Lang.*.
 
 BLOCK-LEVEL ON ERROR UNDO, THROW.
 
-CLASS test_Settings:
+CLASS test_Settings_More:
 
   @Setup.
   METHOD PUBLIC VOID setUp(  ):
@@ -19,7 +19,7 @@ CLASS test_Settings:
   END METHOD.
 
   @Test.
-/*  @Ignore.*/
+  @Ignore.
   METHOD PUBLIC VOID canMessage2(  ):
 
     MESSAGE "2".
