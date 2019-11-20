@@ -381,6 +381,15 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
                             DO:
                                  classInfo = NEW ClassInfo(GetObjectIdAttribute(xmlRefElement), annotationsInfo).
                                  typeInfo:classInfo = classInfo.
+
+                                 IF NOT annotationInfo EQ ? THEN
+                                 DO:
+                                   classInfo:isOnly = AnnotationUtil:HasOnlyAnnotation(annotationsInfo).
+/*                                   if classInfo:isOnly then do:        */
+/*                                    message "marking class as is only".*/
+/*                                   end.                                */
+                                 END.
+
                                  isTestSuiteClass = AnnotationUtil:HasAnnotation(annotationsInfo, "TestSuite").
                                  IF isTestSuiteClass THEN
                                     LEAVE.
@@ -410,6 +419,7 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
                                 /* is this method marked as only? */
                                 methodIn:isOnly = AnnotationUtil:HasOnlyAnnotation(annotationsInfo).
                                 IF methodIn:isOnly THEN DO:
+/*                                    message "marking class as has only".*/
                                     classInfo:hasOnly = TRUE.
                                 END.
 
@@ -1265,6 +1275,7 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
       END.
       classOrProc = REPLACE(classOrProc, "-", " ").
       classOrProc = REPLACE(classOrProc, "_", " ").
+      classOrProc = REPLACE(classOrProc, ".", " ").
 
       MESSAGE classOrProc colourResetString.
 

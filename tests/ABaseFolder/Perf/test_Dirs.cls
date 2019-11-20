@@ -13,9 +13,9 @@ CLASS ABaseFolder.Perf.test_Dirs:
   END METHOD.
 
   @Test.
-  METHOD PUBLIC VOID canRunInPFolder(  ):
+  METHOD PUBLIC VOID canRunInAFolder(  ):
 
-    MESSAGE "1".
+    Assert:IsTrue(TRUE).
 
   END METHOD.
 

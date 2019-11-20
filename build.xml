@@ -38,7 +38,7 @@
         <include name="**/*.cls"/>
     </fileset>
 
-    <target name="build" depends="init,compile"/>
+    <target name="build" depends="init,compile,test"/>
 
     <target name="init" depends="" description="Prepare for compile">
         <mkdir dir="${clean.build}"/>

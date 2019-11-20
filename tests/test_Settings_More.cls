@@ -12,24 +12,24 @@ CLASS test_Settings_More:
   END METHOD.
 
   @Test.
-  METHOD PUBLIC VOID canMessage1(  ):
+  METHOD PUBLIC VOID runTest1(  ):
 
-    MESSAGE "1".
+    Assert:IsTrue(TRUE).
 
   END METHOD.
 
   @Test.
   @Ignore.
-  METHOD PUBLIC VOID canMessage2(  ):
+  METHOD PUBLIC VOID runTest2(  ):
 
-    MESSAGE "2".
+    Assert:IsTrue(TRUE).
 
   END METHOD.
 
   @Test.
-  METHOD PUBLIC VOID canMessage3(  ):
+  METHOD PUBLIC VOID runTest3(  ):
 
-    MESSAGE "3".
+    Assert:IsTrue(TRUE).
 
   END METHOD.
 

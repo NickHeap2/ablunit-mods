@@ -57,11 +57,14 @@ DEFINE VARIABLE updateFile AS CHARACTER NO-UNDO.
 
 DEFINE VARIABLE quitOnEnd AS LOGICAL NO-UNDO INIT FALSE.
 
+DEFINE VARIABLE versionNumber AS CHARACTER NO-UNDO.
+versionNumber = "1.0.0".
+
 /* ***************************  Main Block  *************************** */
 /* Supress the warnings */
 SESSION:SUPPRESS-WARNINGS = YES.
 
-MESSAGE "Running custom ablunit...".
+MESSAGE SUBSTITUTE("Running custom ablunit version &1...", versionNumber).
 LOG-MANAGER:LOGFILE-NAME = SESSION:TEMP-DIR + "ablunit.log".
 LOG-MANAGER:LOG-ENTRY-TYPES = "4GLMessages:4,4GLTrace:4".
 
