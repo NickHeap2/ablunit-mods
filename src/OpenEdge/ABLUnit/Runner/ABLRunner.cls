@@ -837,10 +837,10 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
        Compiles and call the corresponding method or internal procedure to run the testcase
     ------------------------------------------------------------------------------*/
     METHOD PUBLIC VOID populateTestModelForTestCase(INPUT testCase AS CHARACTER, INPUT test AS CHARACTER, INPUT testEntity AS TestEntity):
-            IF(testCase MATCHES "*.p") THEN
+            IF(testCase MATCHES "*~~.p") THEN
                 populateTestModelForProcedureType(testCase, test, testEntity).
             /*We should explicitly check that file is class or not*/
-            ELSE IF(testCase MATCHES "*.cls") THEN
+            ELSE IF(testCase MATCHES "*~~.cls") THEN
                 populateTestModelForTestClass(testCase, test, testEntity).
     END METHOD.
 
@@ -902,7 +902,7 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
             FILE-INFO:FILE-NAME = testCase.
             IF (FILE-INFO:FILE-TYPE BEGINS "D") THEN
                 populateTestModelForTestFolder(testCase, testEntity).
-            ELSE IF (testClass MATCHES "*.cls" OR testClass MATCHES "*.p") THEN
+            ELSE IF (testClass MATCHES "*~~.cls" OR testClass MATCHES "*~~.p") THEN
                 populateTestModelForTestCase(testClass, testMethod, testModel).
         END.
     END METHOD.
@@ -930,7 +930,7 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
         DO i = 1 TO count:
             DEFINE VARIABLE fileInput AS File.
             fileInput= CAST(testFiles:GetValue(i), File).
-            IF (fileInput:fileN MATCHES "*.cls" OR fileInput:fileN MATCHES "*.p") THEN
+            IF (fileInput:fileN MATCHES "*~~.cls" OR fileInput:fileN MATCHES "*~~.p") THEN
                populateTestModelForTestCase(testFolder + "~/" + fileInput:fileN, "", testEnity).
         END.
         INPUT CLOSE.
@@ -1026,7 +1026,7 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
     returns the relative path of the classes if the input is of qualified type.
     **/
      METHOD PUBLIC CHARACTER getRelativePathOfClasses(INPUT testcase AS CHARACTER):
-     IF NOT testCase MATCHES "*.cls" THEN
+     IF NOT testCase MATCHES "*~~.cls" THEN
             DO:
                 testcase = REPLACE (testCase, ".", "/").
                 testcase = testCase + ".cls".
@@ -1270,7 +1270,7 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
         classOrProc = SUBSTRING(classOrProc, R-INDEX(classOrProc, "/") + 1).
       END.
 
-      IF classOrProc MATCHES "*~.p" THEN DO:
+      IF classOrProc MATCHES "*~~.p" THEN DO:
         classOrProc = SUBSTRING(classOrProc, 1, LENGTH(classOrProc) - 2).
       END.
       classOrProc = REPLACE(classOrProc, "-", " ").
@@ -1348,9 +1348,9 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
         childrenSize = testEntity:getChildrenSize().
 
         DEFINE VARIABLE parentDescription AS CHARACTER NO-UNDO.
-        IF(testEntity:Name MATCHES "*.cls") THEN
+        IF(testEntity:Name MATCHES "*~~.cls") THEN
           parentDescription = DescribeParent(CAST(testEntity , TestClass):classInfo:getClassName()).
-        ELSE IF(testEntity:Name MATCHES "*.p") THEN
+        ELSE IF(testEntity:Name MATCHES "*~~.p") THEN
           parentDescription = DescribeParent(CAST(testEntity , TestProcedure):name).
 
         DEFINE VARIABLE onlyIsPresent AS LOGICAL INITIAL FALSE NO-UNDO.
@@ -1389,9 +1389,9 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
                      updateFile(updateFile, content, FALSE).
 
                      DEFINE VARIABLE testDescription AS CHARACTER NO-UNDO.
-                     IF(testEntity:Name MATCHES "*.cls") THEN
+                     IF(testEntity:Name MATCHES "*~~.cls") THEN
                        testDescription = DescribeTest(CAST(testEntity , TestClass):classInfo:getClassName(), CAST(testMethod , TestMethod):name).
-                     IF(testEntity:Name MATCHES "*.p") THEN
+                     IF(testEntity:Name MATCHES "*~~.p") THEN
                        testDescription = DescribeTest(CAST(testEntity , TestProcedure):name, CAST(testMethod , TestMethod):name).
 /* MESSAGE "testClass:classInfo:isOnly=" testClass:classInfo:isOnly.
 MESSAGE "testClass:classInfo:hasOnly=" testClass:classInfo:hasOnly.
@@ -1415,9 +1415,9 @@ MESSAGE "testMethod:getTestInfo():isOnly=" testMethod:getTestInfo():isOnly. */
                         testResult = NEW TestTestResult().
                         testResult:TestResult = TestTestResult:StatusIgnored.
                      END.
-                     ELSE IF(testEntity:Name MATCHES "*.cls") THEN
+                     ELSE IF(testEntity:Name MATCHES "*~~.cls") THEN
                        testResult = runTestClassMethod(CAST(testEntity , TestClass), testMethodEntity:getTestInfo(), testClassType).
-                     ELSE IF(testEntity:Name MATCHES "*.p") THEN
+                     ELSE IF(testEntity:Name MATCHES "*~~.p") THEN
                        testResult = runTestProcedure(CAST(testEntity , TestProcedure), testMethodEntity:getTestInfo(), testMethod, procHandle).
 
                      testResult:TestDescription = testDescription.
