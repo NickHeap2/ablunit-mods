@@ -58,15 +58,15 @@ DEFINE VARIABLE updateFile AS CHARACTER NO-UNDO.
 DEFINE VARIABLE quitOnEnd AS LOGICAL NO-UNDO INIT FALSE.
 
 DEFINE VARIABLE versionNumber AS CHARACTER NO-UNDO.
-versionNumber = "1.0.0".
+versionNumber = "1.0.1".
 
 /* ***************************  Main Block  *************************** */
 /* Supress the warnings */
 SESSION:SUPPRESS-WARNINGS = YES.
 
 MESSAGE SUBSTITUTE("Running custom ablunit version &1...", versionNumber).
-LOG-MANAGER:LOGFILE-NAME = SESSION:TEMP-DIR + "ablunit.log".
-LOG-MANAGER:LOG-ENTRY-TYPES = "4GLMessages:4,4GLTrace:4".
+/*LOG-MANAGER:LOGFILE-NAME = SESSION:TEMP-DIR + "ablunit.log".
+LOG-MANAGER:LOG-ENTRY-TYPES = "4GLMessages:4,4GLTrace:4,QryInfo:4".*/
 
 commandParams = SESSION:PARAM.
 
@@ -99,7 +99,7 @@ CATCH e AS Error:
     IF testConfig:WriteLog THEN
         DO:
             LOG-MANAGER:LOGFILE-NAME = SESSION:TEMP-DIR + "ablunit.log".
-            LOG-MANAGER:LOG-ENTRY-TYPES = "4GLMessages:4,4GLTrace:4".
+            LOG-MANAGER:LOG-ENTRY-TYPES = "4GLMessages:4,4GLTrace:4,QryInfo:4".
             LOG-MANAGER:WRITE-MESSAGE (e:GetMessage(1)).
             LOG-MANAGER:WRITE-MESSAGE (e:CallStack).
             LOG-MANAGER:CLOSE-LOG.

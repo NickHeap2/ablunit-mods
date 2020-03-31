@@ -1326,6 +1326,9 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
        DEFINE VARIABLE timeString AS DECIMAL DECIMALS 3 NO-UNDO.
        DEFINE VARIABLE childTimeString AS DECIMAL DECIMALS 3 NO-UNDO.
 
+       DEFINE VARIABLE beforeTestHasFailed AS LOGICAL INITIAL FALSE NO-UNDO.
+       DEFINE VARIABLE beforeTestError AS AssertionFailedError NO-UNDO.
+
         DEFINE VARIABLE className AS CHARACTER NO-UNDO.
         updateFile(updateFile, "TEST_START " + STRING(testEntity:Id), FALSE).
 
@@ -1365,7 +1368,15 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
             END.
             classEntity =   CAST(testEntity , TestClass).
             classAnnotationInfo = classEntity:AnnotationInfo.
-            classAnnotationInfo:RunBeforeClass(testClassType, summaryResult).
+            
+            DO ON ERROR UNDO, LEAVE:
+              beforeTestHasFailed = FALSE.
+              classAnnotationInfo:RunBeforeClass(testClassType, summaryResult).
+              CATCH err AS AssertionFailedError :
+                beforeTestHasFailed = TRUE.
+                beforeTestError = err.
+              END CATCH.
+            END.
         END.
         ELSE IF(TYPE-OF (testEntity , TestProcedure)) THEN
         DO:
@@ -1375,7 +1386,14 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
             END.
             procedureEntity =   CAST(testEntity , TestProcedure).
             procedureAnnotInfo = procedureEntity:annotationInfo.
-            procedureAnnotInfo:RunBeforeProcedure(procHandle, summaryResult).
+            DO ON ERROR UNDO, LEAVE:
+              beforeTestHasFailed = FALSE.
+              procedureAnnotInfo:RunBeforeProcedure(procHandle, summaryResult).
+              CATCH err AS AssertionFailedError :
+                beforeTestHasFailed = TRUE.
+                beforeTestError = err.
+              END CATCH.
+            END.
         END.
 
         _CHILD:
@@ -1414,6 +1432,11 @@ MESSAGE "testMethod:getTestInfo():isOnly=" testMethod:getTestInfo():isOnly. */
                      IF testWasExcluded THEN DO:
                         testResult = NEW TestTestResult().
                         testResult:TestResult = TestTestResult:StatusIgnored.
+                     END.
+                     IF beforeTestHasFailed THEN DO:
+                         testResult = NEW TestTestResult().
+                         testResult:TestResult = TestTestResult:StatusFailed.
+                         testResult:Error = beforeTestError.
                      END.
                      ELSE IF(testEntity:Name MATCHES "*~~.cls") THEN
                        testResult = runTestClassMethod(CAST(testEntity , TestClass), testMethodEntity:getTestInfo(), testClassType).
