@@ -58,7 +58,7 @@ DEFINE VARIABLE updateFile AS CHARACTER NO-UNDO.
 DEFINE VARIABLE quitOnEnd AS LOGICAL NO-UNDO INIT FALSE.
 
 DEFINE VARIABLE versionNumber AS CHARACTER NO-UNDO.
-versionNumber = "1.0.1".
+versionNumber = "1.1.0".
 
 /* ***************************  Main Block  *************************** */
 /* Supress the warnings */
