@@ -423,6 +423,9 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
                                     classInfo:hasOnly = TRUE.
                                 END.
 
+                                /* is this method marked as always show duration? */
+                                methodIn:isShowDuration = AnnotationUtil:HasShowDurationAnnotation(annotationsInfo).
+
                                 methodInfoList:SetValue(methodIn, typeInfo:methodsCount).
                                 annotationsCount = 0.
                                 annotationInfo = ?.
@@ -1254,6 +1257,9 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
       ELSE IF timeTakenMs > (75 / 2) THEN DO:
         timeTakenString = SUBSTITUTE("&1(&2ms)&3", setColour(colourMedium), timeTakenMs, colourResetString).
       END.
+      ELSE IF testResult:ShowDuration THEN DO:
+        timeTakenString = SUBSTITUTE("&1(&2ms)&3", setColour(colourFast), timeTakenMs, colourResetString).
+      END.
       ELSE DO:
         timeTakenString = SUBSTITUTE("&1&2" /*"&1(&2ms)"*/, setColour(colourFast), /*timeTakenMs,*/ colourResetString).
       END.
@@ -1406,11 +1412,6 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
                      content = "TEST_START " + STRING(testMethod:Id).
                      updateFile(updateFile, content, FALSE).
 
-                     DEFINE VARIABLE testDescription AS CHARACTER NO-UNDO.
-                     IF(testEntity:Name MATCHES "*~~.cls") THEN
-                       testDescription = DescribeTest(CAST(testEntity , TestClass):classInfo:getClassName(), CAST(testMethod , TestMethod):name).
-                     IF(testEntity:Name MATCHES "*~~.p") THEN
-                       testDescription = DescribeTest(CAST(testEntity , TestProcedure):name, CAST(testMethod , TestMethod):name).
 /* MESSAGE "testClass:classInfo:isOnly=" testClass:classInfo:isOnly.
 MESSAGE "testClass:classInfo:hasOnly=" testClass:classInfo:hasOnly.
 MESSAGE "testMethod:getTestInfo():isOnly=" testMethod:getTestInfo():isOnly. */
@@ -1427,19 +1428,34 @@ MESSAGE "testMethod:getTestInfo():isOnly=" testMethod:getTestInfo():isOnly. */
                       END.
                     END.
 
+                    DEFINE VARIABLE testDescription AS CHARACTER NO-UNDO.
+                    IF(testEntity:Name MATCHES "*~~.cls") THEN DO:
+                      testDescription = DescribeTest(CAST(testEntity , TestClass):classInfo:getClassName(), CAST(testMethod , TestMethod):name).
+                    END.
+                    ELSE IF(testEntity:Name MATCHES "*~~.p") THEN DO:
+                      testDescription = DescribeTest(CAST(testEntity , TestProcedure):name, CAST(testMethod , TestMethod):name).
+                    END.
+
                      testMethodEntity = CAST(testMethod , TestMethod).
                      childTimeString = MTIME.
                      IF testWasExcluded THEN DO:
+                        /* message "testWasExcluded". */
                         testResult = NEW TestTestResult().
                         testResult:TestResult = TestTestResult:StatusIgnored.
                      END.
-                     IF beforeTestHasFailed THEN DO:
+                     ELSE IF beforeTestHasFailed THEN DO:
+                         /* message "beforeTestHasFailed". */
                          testResult = NEW TestTestResult().
                          testResult:TestResult = TestTestResult:StatusFailed.
                          testResult:Error = beforeTestError.
                      END.
-                     ELSE IF(testEntity:Name MATCHES "*~~.cls") THEN
+                     ELSE IF(testEntity:Name MATCHES "*~~.cls") THEN DO:
                        testResult = runTestClassMethod(CAST(testEntity , TestClass), testMethodEntity:getTestInfo(), testClassType).
+
+                       IF testMethod:getTestInfo():isShowDuration THEN DO:
+                         testResult:ShowDuration = TRUE.
+                       END.
+                     END.
                      ELSE IF(testEntity:Name MATCHES "*~~.p") THEN
                        testResult = runTestProcedure(CAST(testEntity , TestProcedure), testMethodEntity:getTestInfo(), testMethod, procHandle).
 

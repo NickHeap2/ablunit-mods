@@ -6,6 +6,8 @@ BLOCK-LEVEL ON ERROR UNDO, THROW.
 
 CLASS test_Settings:
 
+  DEFINE VARIABLE testCount AS INTEGER NO-UNDO.
+
   @Setup.
   METHOD PUBLIC VOID setUp(  ):
 
@@ -14,22 +16,25 @@ CLASS test_Settings:
   @Test.
   METHOD PUBLIC VOID runTest1(  ):
 
-    Assert:IsTrue(TRUE).
+    testCount = testCount + 1.
+    Assert:Equals("Not Run", "Run").
+
+  END METHOD.
+
+  @Test.
+  METHOD PUBLIC VOID runTest2(  ):
+
+    testCount = testCount + 2.
+    Assert:Equals("Not Run", "Run").
 
   END METHOD.
 
   @Test.
   @Only.
-  METHOD PUBLIC VOID runTest2(  ):
-
-    Assert:IsTrue(TRUE).
-
-  END METHOD.
-
-  @Test.
   METHOD PUBLIC VOID runTest3(  ):
 
-    Assert:IsTrue(TRUE).
+    testCount = testCount + 4.
+    Assert:Equals(4, testCount).
 
   END METHOD.
 
