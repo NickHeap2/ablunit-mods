@@ -62,6 +62,12 @@
                 <available file="/usr/dlc" type="dir"/>
             </and>
         </condition>
+        <condition property="@{dlc11}" value="/psc/dlc">
+            <and>
+                <isset property="@{isUnix}"/>
+                <available file="/psc/dlc" type="dir"/>
+            </and>
+        </condition>
         <!-- windows -->
         <condition property="@{dlc11}" value="C:\\Progress\\OpenEdge">
             <and>
