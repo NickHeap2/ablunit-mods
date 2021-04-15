@@ -12,7 +12,7 @@ CLASS test_Settings_More:
   END METHOD.
 
   @Test.
-  METHOD PUBLIC VOID runTest1(  ):
+  METHOD PUBLIC VOID canRunTest1(  ):
 
     Assert:IsTrue(TRUE).
 
@@ -20,14 +20,14 @@ CLASS test_Settings_More:
 
   @Test.
   @Ignore.
-  METHOD PUBLIC VOID runTest2(  ):
+  METHOD PUBLIC VOID canIgnoreTest2(  ):
 
     Assert:IsTrue(TRUE).
 
   END METHOD.
 
   @Test.
-  METHOD PUBLIC VOID runTest3(  ):
+  METHOD PUBLIC VOID canRunTest3(  ):
 
     Assert:IsTrue(TRUE).
 

@@ -58,7 +58,7 @@ DEFINE VARIABLE updateFile AS CHARACTER NO-UNDO.
 DEFINE VARIABLE quitOnEnd AS LOGICAL NO-UNDO INIT FALSE.
 
 DEFINE VARIABLE versionNumber AS CHARACTER NO-UNDO.
-versionNumber = "1.1.0".
+versionNumber = "1.1.3".
 
 /* ***************************  Main Block  *************************** */
 /* Supress the warnings */
@@ -67,6 +67,11 @@ SESSION:SUPPRESS-WARNINGS = YES.
 MESSAGE SUBSTITUTE("Running custom ablunit version &1...", versionNumber).
 /*LOG-MANAGER:LOGFILE-NAME = SESSION:TEMP-DIR + "ablunit.log".
 LOG-MANAGER:LOG-ENTRY-TYPES = "4GLMessages:4,4GLTrace:4,QryInfo:4".*/
+IF OPSYS = "win32"
+  AND OS-GETENV("ABLUNIT_TICK") <> "true"
+THEN DO:
+  MESSAGE "(For proper ticks on Windows you need to execute 'chcp 65001' in your terminal and 'set ABLUNIT_TICK=true' or '$env:ABLUNIT_TICK = ""true""' )".
+END.
 
 commandParams = SESSION:PARAM.
 
@@ -105,7 +110,7 @@ CATCH e AS Error:
             LOG-MANAGER:CLOSE-LOG.
         END.
     IF testConfig:ShowErrorMessage THEN
-        MESSAGE e:GetMessage(1) skip e:CallStack
+        MESSAGE e:GetMessage(1) SKIP e:CallStack
         VIEW-AS ALERT-BOX ERROR.
     IF testConfig:ThrowError THEN
         UNDO, THROW e.

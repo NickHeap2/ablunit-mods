@@ -112,8 +112,16 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
         colourFail = 31.
         colourPending = 36.
         checkmark = 32.
-        checkmarkChar = CHR(251).
-        /*errorChar = "\u00D7".*/
+
+        IF OPSYS = "win32"
+          AND OS-GETENV("ABLUNIT_TICK") <> "true"
+        THEN DO:
+            checkmarkChar = CHR(111).
+        END.
+        ELSE DO:
+            checkmarkChar = "✓".
+        END.
+
         colourFast = 90.
         colourGreen = 32.
         colourMedium = 33.
@@ -127,9 +135,9 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
     END CONSTRUCTOR.
 
     METHOD PRIVATE VOID updateStackTraceProperty():
-     prevStackTraceProperty = SESSION:ERROR-STACK-TRACE.
-     SESSION:ERROR-STACK-TRACE = TRUE.
-     END METHOD.
+        prevStackTraceProperty = SESSION:ERROR-STACK-TRACE.
+        SESSION:ERROR-STACK-TRACE = TRUE.
+    END METHOD.
 
 
      /*------------------------------------------------------------------------------
@@ -200,16 +208,21 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
       	    DO failure = 1 TO testFailures:Size:
       	      DEFINE VARIABLE testResult AS TestTestResult NO-UNDO.
       	      testResult = CAST(testFailures:Get(failure), TestTestResult).
-      	      MESSAGE SUBSTITUTE("&1&2) &3 &4&5", SetColour(colourErrorTitle), failure, testResult:ParentDescription, testResult:TestDescription, colourResetString).
+      	      /*MESSAGE SUBSTITUTE("&1&2) &3 &4&5", SetColour(colourErrorTitle), failure, testResult:ParentDescription, testResult:TestDescription, colourResetString).*/
 
+              DEFINE VARIABLE testResultValue AS CHARACTER NO-UNDO.
+              testResultValue = "".
               IF testResult:ErrorMessage <> "" THEN DO:
-                MESSAGE SUBSTITUTE("    &1Error: &2&3", setColour(colourFail), testResult:ErrorMessage, colourResetString).
+                testResultValue = SUBSTITUTE(": &1 &2&3", setColour(colourFail), testResult:ErrorMessage, colourResetString).
               END.
               ELSE IF testResult:Error <> ?
                 AND testResult:Error:GetMessage(1) <> ""
               THEN DO:
-                MESSAGE SUBSTITUTE("    &1Error: &2&3", setColour(colourFail), testResult:Error:GetMessage(1), colourResetString).
+                testResultValue = SUBSTITUTE(": &1 &2&3", setColour(colourFail), testResult:Error:GetMessage(1), colourResetString).
               END.
+
+      	      MESSAGE SUBSTITUTE("&1&2) &3 &4&5&6", SetColour(colourErrorTitle), failure, testResult:ParentDescription, testResult:TestDescription, colourResetString, testResultValue).
+
               /* write out stack trace for error */
               IF testResult:TestResult = TestTestResult:StatusError
                 AND testResult:Error <> ?
@@ -221,7 +234,31 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
                   MESSAGE SUBSTITUTE("    &1&2&3", SetColour(colourErrorStack), ENTRY(callStackEntry, callStack, "~n"), colourResetString).
                 END.
               END.
-      	    END.
+            END.
+
+            DEFINE VARIABLE totalCount AS INTEGER NO-UNDO.
+            DEFINE VARIABLE errorCount AS INTEGER NO-UNDO.
+            DEFINE VARIABLE ignoreCount AS INTEGER NO-UNDO.
+            DEFINE VARIABLE failureCount AS INTEGER NO-UNDO.
+            DEFINE VARIABLE passCount AS INTEGER NO-UNDO.
+
+            IF VALID-OBJECT(testSummary) THEN DO:
+              errorCount = testSummary:GetErrorCount().
+              ignoreCount = testSummary:GetIgnoreCount().
+              failureCount = testSummary:GetFailureCount().
+              totalCount = testSummary:getTestCount().
+            END.
+            /*MESSAGE SUBSTITUTE("&1&2 total&3", SetColour(colourGreen), totalCount, colourResetString).*/
+
+            passCount = totalCount - errorCount - ignoreCount - failureCount.
+            
+            MESSAGE SUBSTITUTE("&1&2 passing&3", SetColour(colourGreen), passCount, colourResetString).
+            IF errorCount > 0 THEN
+                MESSAGE SUBSTITUTE("&1&2 errors&3", SetColour(colourFail), errorCount, colourResetString).
+            IF ignoreCount > 0 THEN
+                MESSAGE SUBSTITUTE("&1&2 pending&3", SetColour(colourPending), ignoreCount, colourResetString).
+            IF failureCount > 0 THEN
+                MESSAGE SUBSTITUTE("&1&2 failing&3", SetColour(colourFail), failureCount, colourResetString).
 
       		/* COMPLETE event has to be updated anyway to complete the session. */
           	updateFile(updateFile, "COMPLETE", FALSE).
@@ -240,7 +277,7 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
         xrefFile = SESSION:TEMP-DIR + testConfig:ResultsFileName + ".xref".
 
         COMPILE value(testCase) xref-xml VALUE(xrefFile) NO-ERROR.
-        IF ERROR-STATUS:ERROR THEN DO:
+        /*IF ERROR-STATUS:ERROR THEN DO:
           MESSAGE "FAILED TO COMPILE " + testCase.
           DEFINE VARIABLE iMessage AS INTEGER NO-UNDO.
           DEFINE VARIABLE cErrorMessage AS CHARACTER NO-UNDO.
@@ -250,6 +287,17 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
           END.
           MESSAGE cErrorMessage.
           RETURN ?.
+        END.*/
+        IF COMPILER:ERROR THEN DO:
+            MESSAGE "FAILED TO COMPILE " + testCase.
+            DEFINE VARIABLE iMessage AS INTEGER NO-UNDO.
+            DEFINE VARIABLE cErrorMessage AS CHARACTER NO-UNDO.
+            DO iMessage = 1 TO COMPILER:NUM-MESSAGES:
+              IF iMessage > 1 THEN cErrorMessage = cErrorMessage + "~n".
+              cErrorMessage = cErrorMessage + COMPILER:GET-MESSAGE(iMessage).
+            END.
+            MESSAGE cErrorMessage.
+            RETURN ?.
         END.
 
         FILE-INFO:FILE-NAME = xrefFile.
@@ -501,12 +549,15 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
         DEFINE VARIABLE annotationName  AS CHARACTER                                  NO-UNDO.
 
         DEFINE VARIABLE ignoreTest  AS LOGICAL                                  NO-UNDO.
-         DEFINE VARIABLE testResult AS TestTestResult NO-UNDO.
+        DEFINE VARIABLE testResult AS TestTestResult NO-UNDO.
 
         DEFINE VARIABLE typeInfo AS TypeInfo NO-UNDO.
         /** for qualified classes input **/
         testClassName = getRelativePathOfClasses(testClassName).
         typeInfo = BuildTypeInfo(testClassName).
+        IF NOT VALID-OBJECT(typeInfo) THEN DO:
+          UNDO, THROW NEW AppError(SUBSTITUTE("Couldn't get type info for class &1", testClassName)).
+        END.
 
         methodInfoList = typeInfo:methods.
         classAnnotInfo = NEW ClassAnnotationInfo().
@@ -587,25 +638,24 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
             testModel:addTestEntity(testSuite).
             testSuite:classInfo = typeInfo:classInfo.
             /* Check whether the suite class is ignored */
-            IF ignoreTest THEN
+            /*IF ignoreTest THEN
                 UpdateIgnoreDetails(testResult, testSuite, testClassName, summaryResult).
-            ELSE
+            ELSE*/
                 populateTestModelForTestSuite(testSuiteInfo, testSuite).
         END.
         ELSE DO:
             DEFINE VARIABLE testClass AS TestClass NO-UNDO.
             testClass = NEW TestClass(currentID).
-                currentID = currentID + 1.
+            currentID = currentID + 1.
             testClass:Name = testClassName.
             testClass:AnnotationInfo = classAnnotInfo.
             testClass:classInfo = typeInfo:classInfo.
             testEntity:addTestEntity(testClass).
             /* Check whether the class is ignored */
-            IF ignoreTest THEN
+            /*IF ignoreTest THEN
                 UpdateIgnoreDetails(testResult, testClass, testClassName, summaryResult).
-            ELSE
+            ELSE*/
                 populateTestModelForTestMethod(testClassType, testClassName, classAnnotInfo, testMethodInfo, (testMethod = ""), testClass).
-
         END.
 
     END METHOD.
@@ -1063,25 +1113,27 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
         DEFINE VARIABLE children  AS ARRAY NO-UNDO.
         DEFINE VARIABLE newTestEntity AS TestEntity NO-UNDO.
 
-         CREATE X-DOCUMENT phDoc.
-         CREATE X-NODEREF phRootNode.
+        CREATE X-DOCUMENT phDoc.
+        CREATE X-NODEREF phRootNode.
 
-            /*'testsuites' is the root element*/
-            phDoc:CREATE-NODE(phRootNode, "testsuites", "ELEMENT").
-            phDoc:APPEND-CHILD(phRootNode).
-            phRootNode:SET-ATTRIBUTE("name", "ABLUnit").
-            phRootNode:SET-ATTRIBUTE("tests", STRING(testTypeResult:getTestCount())).
-            phRootNode:SET-ATTRIBUTE("errors", STRING(testTypeResult:GetErrorCount())).
-            phRootNode:SET-ATTRIBUTE("failures", STRING(testTypeResult:GetFailureCount())).
-            IF testTypeResult:GetIgnoreCount() > 0 THEN
-                phRootNode:SET-ATTRIBUTE("ignored", STRING(testTypeResult:GetIgnoreCount())).
+        /*'testsuites' is the root element*/
+        phDoc:CREATE-NODE(phRootNode, "testsuites", "ELEMENT").
+        phDoc:APPEND-CHILD(phRootNode).
+        phRootNode:SET-ATTRIBUTE("name", "ABLUnit").
+        phRootNode:SET-ATTRIBUTE("tests", STRING(testTypeResult:getTestCount())).
+
+        phRootNode:SET-ATTRIBUTE("errors", STRING(testTypeResult:GetErrorCount())).
+
+        phRootNode:SET-ATTRIBUTE("failures", STRING(testTypeResult:GetFailureCount())).
+        IF testTypeResult:GetIgnoreCount() > 0 THEN
+            phRootNode:SET-ATTRIBUTE("ignored", STRING(testTypeResult:GetIgnoreCount())).
 
         children = testEntity:getTestEntities().
         DO i=1 TO testEntity:getChildrenSize():
             newTestEntity = CAST(children:GetValue(i),TestEntity).
             WriteChildEntities(newTestEntity, phDoc, phRootNode).
-         END.
-         phDoc:SAVE("file", pcXmlFileName).
+        END.
+        phDoc:SAVE("file", pcXmlFileName).
     END METHOD.
 
       /*------------------------------------------------------------------------------
@@ -1116,6 +1168,11 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
         END.
         ELSE
         DO:
+            IF (NOT VALID-OBJECT(testEntity:TestResult))
+              OR testEntity:TestResult:TestResult = TestTestResult:StatusExcluded
+            THEN DO:
+              RETURN.
+            END.
             testEntityHandle = createTestXMLResult(phDoc, testEntityHandle, testEntity, parentNode).
         END.
 
@@ -1217,7 +1274,7 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
        END METHOD.
 
     METHOD PRIVATE VOID DescribeIgnored(testDescription AS CHARACTER):
-      MESSAGE "  -" testDescription colourResetString.
+      MESSAGE SUBSTITUTE("  &1- &2&3", setColour(colourPending), testDescription, colourResetString).
     END METHOD.
 
     METHOD PRIVATE CHARACTER SetColour(colourCode AS INTEGER):
@@ -1229,8 +1286,10 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
 
     METHOD PRIVATE VOID describeFail(testResult AS TestTestResult):
       testFailures:Add(testResult).
-      MESSAGE SUBSTITUTE("  &1) &2&3", testFailures:Size, testResult:TestDescription, colourResetString).
-      MESSAGE SUBSTITUTE("    &1Error: &2&3", setColour(colourFail), testResult:Error:GetMessage(1), colourResetString).
+      /*MESSAGE SUBSTITUTE("  &1) &2&3", testFailures:Size, testResult:TestDescription, colourResetString).
+      MESSAGE SUBSTITUTE("    &1Error: &2&3", setColour(colourFail), testResult:Error:GetMessage(1), colourResetString).*/
+
+      MESSAGE SUBSTITUTE("  &1&2) &3&4", setColour(colourFail), testFailures:Size, testResult:TestDescription, colourResetString).
     END METHOD.
 
     METHOD PRIVATE VOID describeException(testResult AS TestTestResult):
@@ -1265,6 +1324,7 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
       END.
 
       MESSAGE SUBSTITUTE("  &1&2&3 &4 &5&6", setColour(colourGreen), checkmarkChar, setColour(colourPass), testResult:TestDescription, timeTakenString, colourResetString).
+
     END METHOD.
 
     METHOD PRIVATE CHARACTER describeParent(classOrProc AS CHARACTER):
@@ -1374,7 +1434,7 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
             END.
             classEntity =   CAST(testEntity , TestClass).
             classAnnotationInfo = classEntity:AnnotationInfo.
-            
+
             DO ON ERROR UNDO, LEAVE:
               beforeTestHasFailed = FALSE.
               classAnnotationInfo:RunBeforeClass(testClassType, summaryResult).
@@ -1409,24 +1469,26 @@ CLASS OpenEdge.ABLUnit.Runner.ABLRunner:
                     DEFINE VARIABLE content AS CHARACTER NO-UNDO.
                     DEFINE VARIABLE testMethod AS TestMethod NO-UNDO.
                     testMethod = CAST(children:GetValue(j), TestMethod).
-                     content = "TEST_START " + STRING(testMethod:Id).
-                     updateFile(updateFile, content, FALSE).
 
 /* MESSAGE "testClass:classInfo:isOnly=" testClass:classInfo:isOnly.
 MESSAGE "testClass:classInfo:hasOnly=" testClass:classInfo:hasOnly.
 MESSAGE "testMethod:getTestInfo():isOnly=" testMethod:getTestInfo():isOnly. */
                     DEFINE VARIABLE testWasExcluded AS LOGICAL NO-UNDO.
 
-                    testWasExcluded = FALSE.
+                    /*testWasExcluded = FALSE.*/
                     IF(TYPE-OF (testEntity , TestClass)) THEN
                     DO:
                       /* any onlys for class? */
                       IF testClass:classInfo:hasOnly THEN DO:
                         IF NOT testMethod:getTestInfo():isOnly THEN DO:
-                          testWasExcluded = TRUE.
+                          /*testWasExcluded = TRUE.*/
+                          NEXT _CHILD.
                         END.
                       END.
                     END.
+
+                    content = "TEST_START " + STRING(testMethod:Id).
+                    updateFile(updateFile, content, FALSE).
 
                     DEFINE VARIABLE testDescription AS CHARACTER NO-UNDO.
                     IF(testEntity:Name MATCHES "*~~.cls") THEN DO:
@@ -1441,7 +1503,7 @@ MESSAGE "testMethod:getTestInfo():isOnly=" testMethod:getTestInfo():isOnly. */
                      IF testWasExcluded THEN DO:
                         /* message "testWasExcluded". */
                         testResult = NEW TestTestResult().
-                        testResult:TestResult = TestTestResult:StatusIgnored.
+                        testResult:TestResult = TestTestResult:StatusExcluded.
                      END.
                      ELSE IF beforeTestHasFailed THEN DO:
                          /* message "beforeTestHasFailed". */
@@ -1456,8 +1518,9 @@ MESSAGE "testMethod:getTestInfo():isOnly=" testMethod:getTestInfo():isOnly. */
                          testResult:ShowDuration = TRUE.
                        END.
                      END.
-                     ELSE IF(testEntity:Name MATCHES "*~~.p") THEN
+                     ELSE IF(testEntity:Name MATCHES "*~~.p") THEN DO:
                        testResult = runTestProcedure(CAST(testEntity , TestProcedure), testMethodEntity:getTestInfo(), testMethod, procHandle).
+                     END.
 
                      testResult:TestDescription = testDescription.
                      testResult:ParentDescription = parentDescription.
@@ -1479,21 +1542,27 @@ MESSAGE "testMethod:getTestInfo():isOnly=" testMethod:getTestInfo():isOnly. */
                      END.
                      ELSE IF(testResult:TestResult = TestTestResult:StatusIgnored) THEN
                      DO:
-                         /* don't log ignore to screen if from an only */
-                         IF NOT testWasExcluded THEN DO:
-                            DescribeIgnored(testDescription).
-                         END.
+                         DescribeIgnored(testDescription).
                          updateFile(updateFile, "TEST_IGNORED " + STRING(testMethod:Id), FALSE).
                      END.
+                     /*ELSE IF(testResult:TestResult = TestTestResult:StatusExcluded) THEN
+                     DO:
+                         /* we don't output excluded tests */
+                         DescribeExcluded(testDescription).
+                     END.*/
 
-					 /* Update the time taken */
-                     IF(testResult:TestResult = TestTestResult:StatusIgnored) THEN
-                    	childTimeString = 0.
-                     ELSE DO:
-                     	childTimeString = MTIME - childTimeString.
-
-                     	childTimeString = childTimeString / 1000.
+                     /* Update the time taken */
+                     IF(testResult:TestResult = TestTestResult:StatusIgnored
+                        OR testResult:TestResult = TestTestResult:StatusExcluded)
+                     THEN DO:
+                       childTimeString = 0.
                      END.
+                     ELSE DO:
+                     	 childTimeString = MTIME - childTimeString.
+
+                     	 childTimeString = childTimeString / 1000.
+                     END.
+
                      testMethod:TimeTaken = childTimeString.
                      testResult:TimeTaken = childTimeString.
                      updateFile(updateFile, "TEST_END " + STRING(testMethod:Id) + " " + STRING(childTimeString), FALSE).
@@ -1565,8 +1634,10 @@ MESSAGE "testMethod:getTestInfo():isOnly=" testMethod:getTestInfo():isOnly. */
                 summaryResult:incrementError().
         ELSE IF(testMethodResult:TestResult = TestTestResult:StatusFailed) THEN
                 summaryResult:incrementFailure().
-        ELSE IF(testMethodResult:TestResult = TestTestResult:StatusIgnored) THEN
+        ELSE IF(testMethodResult:TestResult = TestTestResult:StatusIgnored) THEN DO:
                 summaryResult:IncrementIgnore().
+                message testMethodResult:TestName testMethodResult:TestDescription.
+        END.
         ELSE
                summaryResult:incrementSuccess().
     END.

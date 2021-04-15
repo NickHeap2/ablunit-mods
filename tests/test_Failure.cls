@@ -4,7 +4,7 @@ USING Progress.Lang.*.
 
 BLOCK-LEVEL ON ERROR UNDO, THROW.
 
-CLASS test_Settings_ShowDuration:
+CLASS test_Failure:
 
   DEFINE VARIABLE testCount AS INTEGER NO-UNDO.
 
@@ -14,17 +14,9 @@ CLASS test_Settings_ShowDuration:
   END METHOD.
 
   @Test.
-  METHOD PUBLIC VOID canNotShowDuration(  ):
-
+  METHOD PUBLIC VOID canShowFailures(  ):
+/*    Assert:Equals(TRUE, FALSE).*/
   END METHOD.
-
-  @Test.
-  @ShowDuration.
-  METHOD PUBLIC VOID canAlwayShowDuration(  ):
-
-  END METHOD.
-
-
 
   @TearDown.
   METHOD PUBLIC VOID tearDown(  ):

@@ -14,7 +14,7 @@ CLASS test_Settings:
   END METHOD.
 
   @Test.
-  METHOD PUBLIC VOID runTest1(  ):
+  METHOD PUBLIC VOID canRunTest1(  ):
 
     testCount = testCount + 1.
     Assert:Equals("Not Run", "Run").
@@ -22,7 +22,7 @@ CLASS test_Settings:
   END METHOD.
 
   @Test.
-  METHOD PUBLIC VOID runTest2(  ):
+  METHOD PUBLIC VOID canRunTest2(  ):
 
     testCount = testCount + 2.
     Assert:Equals("Not Run", "Run").
@@ -30,8 +30,8 @@ CLASS test_Settings:
   END METHOD.
 
   @Test.
-  @Only.
-  METHOD PUBLIC VOID runTest3(  ):
+  @Only. 
+  METHOD PUBLIC VOID canRunTest3(  ):
 
     testCount = testCount + 4.
     Assert:Equals(4, testCount).
